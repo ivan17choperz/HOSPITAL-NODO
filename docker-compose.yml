@@ -1,0 +1,630 @@
+## ============================================================
+##  HOSPITAL DISTRIBUTED SYSTEM - 3 NODE SETUP
+##  Usage:
+##    Single node:  docker-compose --profile node1 up --build
+##    All nodes:    docker-compose --profile node1 --profile node2 --profile node3 up --build
+##  Management UIs (when running):
+##    RabbitMQ Node1: http://localhost:15672  (guest/guest)
+##    RabbitMQ Node2: http://localhost:15673  (guest/guest)
+##    RabbitMQ Node3: http://localhost:15674  (guest/guest)
+##    API Gateway Node1: http://localhost:80
+##    API Gateway Node2: http://localhost:8080
+##    API Gateway Node3: http://localhost:9080
+## ============================================================
+
+services:
+
+  # ============================================================
+  #  NODE 1 BOGOTA
+  # ============================================================
+
+  postgres-node1:
+    image: postgres:17-alpine
+    profiles: ["node1"]
+    container_name: hospital-node1-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: hospital_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_node1:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d hospital_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - node1-network
+
+  rabbitmq-node1:
+    image: rabbitmq:4-management-alpine
+    profiles: ["node1"]
+    container_name: hospital-node1-mq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - node1-network
+
+  redis-node1:
+    image: redis:7-alpine
+    profiles: ["node1"]
+    container_name: hospital-node1-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - node1-network
+
+  # ms-admission-node1:
+  #   build: ./ms-admission
+  #   profiles: ["node1"]
+  #   container_name: hospital-node1-admission
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node1:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node1
+  #     - SERVER_PORT=8081
+  #     - NODE_ID=node1
+  #   depends_on:
+  #     postgres-node1:
+  #       condition: service_healthy
+  #     rabbitmq-node1:
+  #       condition: service_healthy
+  #   networks:
+  #     - node1-network
+
+  # ms-discharge-node1:
+  #   build: ./ms-discharge
+  #   profiles: ["node1"]
+  #   container_name: hospital-node1-discharge
+  #   ports:
+  #     - "8082:8082"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node1:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node1
+  #     - SERVER_PORT=8082
+  #     - NODE_ID=node1
+  #   depends_on:
+  #     postgres-node1:
+  #       condition: service_healthy
+  #     rabbitmq-node1:
+  #       condition: service_healthy
+  #   networks:
+  #     - node1-network
+
+  # ms-emr-node1:
+  #   build: ./ms-emr
+  #   profiles: ["node1"]
+  #   container_name: hospital-node1-emr
+  #   ports:
+  #     - "8083:8083"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node1:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node1
+  #     - SERVER_PORT=8083
+  #     - NODE_ID=node1
+  #   depends_on:
+  #     postgres-node1:
+  #       condition: service_healthy
+  #     rabbitmq-node1:
+  #       condition: service_healthy
+  #   networks:
+  #     - node1-network
+
+  # ms-laboratory-node1:
+  #   build: ./ms-laboratory
+  #   profiles: ["node1"]
+  #   container_name: hospital-node1-laboratory
+  #   ports:
+  #     - "8084:8084"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node1:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node1
+  #     - SERVER_PORT=8084
+  #     - NODE_ID=node1
+  #   depends_on:
+  #     postgres-node1:
+  #       condition: service_healthy
+  #     rabbitmq-node1:
+  #       condition: service_healthy
+  #   networks:
+  #     - node1-network
+
+  # ms-fhir-adapter-node1:
+  #   build: ./ms-fhir-adapter
+  #   profiles: ["node1"]
+  #   container_name: hospital-node1-fhir
+  #   ports:
+  #     - "8085:8085"
+  #   environment:
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node1
+  #     - SERVER_PORT=8085
+  #     - NODE_ID=node1
+  #   depends_on:
+  #     rabbitmq-node1:
+  #       condition: service_healthy
+  #   networks:
+  #     - node1-network
+
+  # ms-sync-agent-node1:
+  #   build: ./ms-sync-agent
+  #   profiles: ["node1"]
+  #   container_name: hospital-node1-sync
+  #   ports:
+  #     - "8086:8086"
+  #   environment:
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node1
+  #     - SPRING_REDIS_HOST=redis-node1
+  #     - MS_ADMISSION_URL=http://ms-admission-node1:8081
+  #     - MS_DISCHARGE_URL=http://ms-discharge-node1:8082
+  #     - MS_EMR_URL=http://ms-emr-node1:8083
+  #     - MS_LABORATORY_URL=http://ms-laboratory-node1:8084
+  #     - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node1:8085
+  #     - PEER_NODES=http://ms-sync-agent-node2:8086,http://ms-sync-agent-node3:8086
+  #     - SERVER_PORT=8086
+  #     - NODE_ID=node1
+  #   depends_on:
+  #     rabbitmq-node1:
+  #       condition: service_healthy
+  #     redis-node1:
+  #       condition: service_healthy
+  #   networks:
+  #     - node1-network
+  #     - inter-node-network
+
+  # nginx-node1:
+  #   image: nginx:alpine
+  #   profiles: ["node1"]
+  #   container_name: hospital-node1-gateway
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - ./nginx/node1.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - ms-admission-node1
+  #     - ms-discharge-node1
+  #     - ms-emr-node1
+  #     - ms-laboratory-node1
+  #     - ms-fhir-adapter-node1
+  #     - ms-sync-agent-node1
+  #   networks:
+  #     - node1-network
+
+  # ============================================================
+  #  NODE 2
+  # ============================================================
+
+  # postgres-node2:
+  #   image: postgres:17-alpine
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-db
+  #   environment:
+  #     POSTGRES_USER: user
+  #     POSTGRES_PASSWORD: password
+  #     POSTGRES_DB: hospital_db
+  #   ports:
+  #     - "5433:5432"
+  #   volumes:
+  #     - postgres_data_node2:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U user -d hospital_db"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - node2-network
+
+  # rabbitmq-node2:
+  #   image: rabbitmq:4-management-alpine
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-mq
+  #   ports:
+  #     - "5673:5672"
+  #     - "15673:15672"
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: guest
+  #     RABBITMQ_DEFAULT_PASS: guest
+  #   healthcheck:
+  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - node2-network
+
+  # redis-node2:
+  #   image: redis:7-alpine
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-redis
+  #   ports:
+  #     - "6380:6379"
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - node2-network
+
+  # ms-admission-node2:
+  #   build: ./ms-admission
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-admission
+  #   ports:
+  #     - "8181:8081"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node2:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node2
+  #     - SERVER_PORT=8081
+  #     - NODE_ID=node2
+  #   depends_on:
+  #     postgres-node2:
+  #       condition: service_healthy
+  #     rabbitmq-node2:
+  #       condition: service_healthy
+  #   networks:
+  #     - node2-network
+
+  # ms-discharge-node2:
+  #   build: ./ms-discharge
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-discharge
+  #   ports:
+  #     - "8182:8082"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node2:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node2
+  #     - SERVER_PORT=8082
+  #     - NODE_ID=node2
+  #   depends_on:
+  #     postgres-node2:
+  #       condition: service_healthy
+  #     rabbitmq-node2:
+  #       condition: service_healthy
+  #   networks:
+  #     - node2-network
+
+  # ms-emr-node2:
+  #   build: ./ms-emr
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-emr
+  #   ports:
+  #     - "8183:8083"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node2:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node2
+  #     - SERVER_PORT=8083
+  #     - NODE_ID=node2
+  #   depends_on:
+  #     postgres-node2:
+  #       condition: service_healthy
+  #     rabbitmq-node2:
+  #       condition: service_healthy
+  #   networks:
+  #     - node2-network
+
+  # ms-laboratory-node2:
+  #   build: ./ms-laboratory
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-laboratory
+  #   ports:
+  #     - "8184:8084"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node2:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node2
+  #     - SERVER_PORT=8084
+  #     - NODE_ID=node2
+  #   depends_on:
+  #     postgres-node2:
+  #       condition: service_healthy
+  #     rabbitmq-node2:
+  #       condition: service_healthy
+  #   networks:
+  #     - node2-network
+
+  # ms-fhir-adapter-node2:
+  #   build: ./ms-fhir-adapter
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-fhir
+  #   ports:
+  #     - "8185:8085"
+  #   environment:
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node2
+  #     - SERVER_PORT=8085
+  #     - NODE_ID=node2
+  #   depends_on:
+  #     rabbitmq-node2:
+  #       condition: service_healthy
+  #   networks:
+  #     - node2-network
+
+  # ms-sync-agent-node2:
+  #   build: ./ms-sync-agent
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-sync
+  #   ports:
+  #     - "8186:8086"
+  #   environment:
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node2
+  #     - SPRING_REDIS_HOST=redis-node2
+  #     - MS_ADMISSION_URL=http://ms-admission-node2:8081
+  #     - MS_DISCHARGE_URL=http://ms-discharge-node2:8082
+  #     - MS_EMR_URL=http://ms-emr-node2:8083
+  #     - MS_LABORATORY_URL=http://ms-laboratory-node2:8084
+  #     - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node2:8085
+  #     - PEER_NODES=http://ms-sync-agent-node1:8086,http://ms-sync-agent-node3:8086
+  #     - SERVER_PORT=8086
+  #     - NODE_ID=node2
+  #   depends_on:
+  #     rabbitmq-node2:
+  #       condition: service_healthy
+  #     redis-node2:
+  #       condition: service_healthy
+  #   networks:
+  #     - node2-network
+  #     - inter-node-network
+
+  # nginx-node2:
+  #   image: nginx:alpine
+  #   profiles: ["node2"]
+  #   container_name: hospital-node2-gateway
+  #   ports:
+  #     - "8080:80"
+  #   volumes:
+  #     - ./nginx/node2.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - ms-admission-node2
+  #     - ms-discharge-node2
+  #     - ms-emr-node2
+  #     - ms-laboratory-node2
+  #     - ms-fhir-adapter-node2
+  #     - ms-sync-agent-node2
+  #   networks:
+  #     - node2-network
+
+  # ============================================================
+  #  NODE 3
+  # ============================================================
+
+  # postgres-node3:
+  #   image: postgres:17-alpine
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-db
+  #   environment:
+  #     POSTGRES_USER: user
+  #     POSTGRES_PASSWORD: password
+  #     POSTGRES_DB: hospital_db
+  #   ports:
+  #     - "5434:5432"
+  #   volumes:
+  #     - postgres_data_node3:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U user -d hospital_db"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - node3-network
+
+  # rabbitmq-node3:
+  #   image: rabbitmq:4-management-alpine
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-mq
+  #   ports:
+  #     - "5674:5672"
+  #     - "15674:15672"
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: guest
+  #     RABBITMQ_DEFAULT_PASS: guest
+  #   healthcheck:
+  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - node3-network
+
+  # redis-node3:
+  #   image: redis:7-alpine
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-redis
+  #   ports:
+  #     - "6381:6379"
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - node3-network
+
+  # ms-admission-node3:
+  #   build: ./ms-admission
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-admission
+  #   ports:
+  #     - "8281:8081"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node3:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node3
+  #     - SERVER_PORT=8081
+  #     - NODE_ID=node3
+  #   depends_on:
+  #     postgres-node3:
+  #       condition: service_healthy
+  #     rabbitmq-node3:
+  #       condition: service_healthy
+  #   networks:
+  #     - node3-network
+
+  # ms-discharge-node3:
+  #   build: ./ms-discharge
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-discharge
+  #   ports:
+  #     - "8282:8082"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node3:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node3
+  #     - SERVER_PORT=8082
+  #     - NODE_ID=node3
+  #   depends_on:
+  #     postgres-node3:
+  #       condition: service_healthy
+  #     rabbitmq-node3:
+  #       condition: service_healthy
+  #   networks:
+  #     - node3-network
+
+  # ms-emr-node3:
+  #   build: ./ms-emr
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-emr
+  #   ports:
+  #     - "8283:8083"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node3:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node3
+  #     - SERVER_PORT=8083
+  #     - NODE_ID=node3
+  #   depends_on:
+  #     postgres-node3:
+  #       condition: service_healthy
+  #     rabbitmq-node3:
+  #       condition: service_healthy
+  #   networks:
+  #     - node3-network
+
+  # ms-laboratory-node3:
+  #   build: ./ms-laboratory
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-laboratory
+  #   ports:
+  #     - "8284:8084"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node3:5432/hospital_db
+  #     - SPRING_DATASOURCE_USERNAME=user
+  #     - SPRING_DATASOURCE_PASSWORD=password
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node3
+  #     - SERVER_PORT=8084
+  #     - NODE_ID=node3
+  #   depends_on:
+  #     postgres-node3:
+  #       condition: service_healthy
+  #     rabbitmq-node3:
+  #       condition: service_healthy
+  #   networks:
+  #     - node3-network
+
+  # ms-fhir-adapter-node3:
+  #   build: ./ms-fhir-adapter
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-fhir
+  #   ports:
+  #     - "8285:8085"
+  #   environment:
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node3
+  #     - SERVER_PORT=8085
+  #     - NODE_ID=node3
+  #   depends_on:
+  #     rabbitmq-node3:
+  #       condition: service_healthy
+  #   networks:
+  #     - node3-network
+
+  # ms-sync-agent-node3:
+  #   build: ./ms-sync-agent
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-sync
+  #   ports:
+  #     - "8286:8086"
+  #   environment:
+  #     - SPRING_RABBITMQ_HOST=rabbitmq-node3
+  #     - SPRING_REDIS_HOST=redis-node3
+  #     - MS_ADMISSION_URL=http://ms-admission-node3:8081
+  #     - MS_DISCHARGE_URL=http://ms-discharge-node3:8082
+  #     - MS_EMR_URL=http://ms-emr-node3:8083
+  #     - MS_LABORATORY_URL=http://ms-laboratory-node3:8084
+  #     - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node3:8085
+  #     - PEER_NODES=http://ms-sync-agent-node1:8086,http://ms-sync-agent-node2:8086
+  #     - SERVER_PORT=8086
+  #     - NODE_ID=node3
+  #   depends_on:
+  #     rabbitmq-node3:
+  #       condition: service_healthy
+  #     redis-node3:
+  #       condition: service_healthy
+  #   networks:
+  #     - node3-network
+  #     - inter-node-network
+
+  # nginx-node3:
+  #   image: nginx:alpine
+  #   profiles: ["node3"]
+  #   container_name: hospital-node3-gateway
+  #   ports:
+  #     - "9080:80"
+  #   volumes:
+  #     - ./nginx/node3.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - ms-admission-node3
+  #     - ms-discharge-node3
+  #     - ms-emr-node3
+  #     - ms-laboratory-node3
+  #     - ms-fhir-adapter-node3
+  #     - ms-sync-agent-node3
+  #   networks:
+  #     - node3-network
+
+networks:
+  node1-network:
+    driver: bridge
+  node2-network:
+    driver: bridge
+  node3-network:
+    driver: bridge
+  inter-node-network:
+    driver: bridge
+
+volumes:
+  postgres_data_node1:
+  postgres_data_node2:
+  postgres_data_node3:

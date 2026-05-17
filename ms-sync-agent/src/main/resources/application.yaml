@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: ms-sync-agent
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: guest
+    password: guest
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: 6379
+
+node:
+  id: ${NODE_ID:node1}
+
+ms-services:
+  admission-url: ${MS_ADMISSION_URL:http://localhost:8081}
+  discharge-url: ${MS_DISCHARGE_URL:http://localhost:8082}
+  emr-url: ${MS_EMR_URL:http://localhost:8083}
+  laboratory-url: ${MS_LABORATORY_URL:http://localhost:8084}
+  fhir-adapter-url: ${MS_FHIR_ADAPTER_URL:http://localhost:8085}
+  peer-nodes: ${PEER_NODES:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  port: 8086

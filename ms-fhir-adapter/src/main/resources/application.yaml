@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: ms-fhir-adapter
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: 5672
+    username: guest
+    password: guest
+
+node:
+  id: ${NODE_ID:node1}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  port: 8085
