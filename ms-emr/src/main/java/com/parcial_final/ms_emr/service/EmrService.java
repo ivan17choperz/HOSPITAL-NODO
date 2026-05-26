@@ -24,6 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -47,9 +48,14 @@ public class EmrService {
 
     @Transactional
     public EmrResponse createRecord(EmrRequestDTO request) {
+        String rawAdmission = request.getAdmissionId() == null ? "" : request.getAdmissionId().trim();
+        String rawPatient   = request.getPatientId()   == null ? "" : request.getPatientId().trim();
+        if (rawAdmission.isBlank()) throw new ResponseStatusException(BAD_REQUEST, "admissionId is required");
+        if (rawPatient.isBlank())   throw new ResponseStatusException(BAD_REQUEST, "patientId is required");
+
         String diagnosesJson = toJson(request.getDiagnoses());
         String medicationsJson = toJson(request.getMedications());
-        UUID admissionUuid = UUID.fromString(request.getAdmissionId());
+        UUID admissionUuid = UUID.fromString(rawAdmission);
 
         // Prefer finding the record created by the event listener (which has the real episodeNumber)
         List<EmrRecord> byAdmission = emrRecordRepository.findByAdmissionId(admissionUuid);
@@ -64,7 +70,7 @@ public class EmrService {
             }
         }
 
-        record.setPatientId(UUID.fromString(request.getPatientId()));
+        record.setPatientId(UUID.fromString(rawPatient));
         record.setAdmissionId(admissionUuid);
         record.setAnamnesis(request.getAnamnesis());
         record.setClinicianNotes(request.getClinicianNotes());
@@ -78,7 +84,7 @@ public class EmrService {
 
     @Transactional(readOnly = true)
     public List<EmrResponse> getByAdmissionId(String admissionId) {
-        return emrRecordRepository.findByAdmissionId(UUID.fromString(admissionId))
+        return emrRecordRepository.findByAdmissionId(UUID.fromString(admissionId.trim()))
                 .stream().map(this::toResponse).toList();
     }
 
