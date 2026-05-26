@@ -119,4 +119,29 @@ Usa perfiles para levantar un nodo completo con todos los servicios del nodo.
 
 ---
 
-Si necesitas, puedo añadir también un resumen de las APIs disponibles por servicio o un ejemplo de endpoint para cada microservicio.
+## Ejemplos de endpoints
+
+- `ms-admission`:
+  - `GET /api/patients` -> `http://localhost:8081/api/patients`
+  - `POST /api/admissions` -> `http://localhost:8081/api/admissions`
+
+- `ms-discharge`:
+  - `GET /api/discharges` -> `http://localhost:8082/api/discharges`
+  - `POST /api/discharges` -> `http://localhost:8082/api/discharges`
+
+- `ms-emr`:
+  - `GET /api/patients/{id}/records` -> `http://localhost:8083/api/patients/{id}/records`
+
+- `ms-laboratory`:
+  - `POST /api/lab/orders` -> `http://localhost:8084/api/lab/orders`
+  - `GET /api/lab/results/{orderId}` -> `http://localhost:8084/api/lab/results/{orderId}`
+
+- `ms-fhir-adapter`:
+  - `POST /fhir/Patient` -> `http://localhost:8085/fhir/Patient`
+
+- `ms-sync-agent`:
+  - `GET /sync/status` -> `http://localhost:8086/sync/status`
+
+- `ms-triage`:
+  - `POST /api/triage` -> `http://localhost:8087/api/triage`
+  - `GET /api/triage/{id}` -> `http://localhost:8087/api/triage/{id}`

@@ -153,8 +153,9 @@
                   <span class="res-icon">○</span>
                   <span class="res-type"
                     >Observation
-                    <small *ngIf="observationBundle()"
-                      >({{ observationBundle().total }})</small
+                    @if (observationBundle()) {
+                    <small>({{ observationBundle().total }})</small>
+                    }
                     ></span
                   >
                   <span class="res-src">Pendiente triage</span>
@@ -168,9 +169,9 @@
                   <span class="res-icon">○</span>
                   <span class="res-type"
                     >Condition
-                    <small *ngIf="clinicalBundle()"
-                      >({{ clinicalBundle().entry?.filter(e => e.resource.resourceType==='Condition').length || 0
-                      }})</small
+                    @if (clinicalBundle()) {
+                    <small>({{ conditionCount() }})</small>
+                    }
                     ></span
                   >
                   <span class="res-src">Pendiente HC</span>
@@ -184,9 +185,9 @@
                   <span class="res-icon">○</span>
                   <span class="res-type"
                     >MedicationRequest
-                    <small *ngIf="clinicalBundle()"
-                      >({{ clinicalBundle().entry?.filter(e => e.resource.resourceType==='MedicationRequest').length || 0
-                      }})</small
+                    @if (clinicalBundle()) {
+                    <small>({{ medicationCount() }})</small>
+                    }
                     ></span
                   >
                   <span class="res-src">Pendiente HC</span>

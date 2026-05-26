@@ -124,7 +124,7 @@ export class HcViewComponent {
     this.observationBundle.set(null);
     this.clinicalBundle.set(null);
 
-    const gateway = admission.node.gatewayUrl;
+    const gateway = this.nodeService.nodes.find(n => n.id === admission.nodeId)?.gatewayUrl ?? '';
     // fetch observations from fhir adapter for that node
     this.http.get(`${gateway}/api/fhir/observations`).subscribe({
       next: (b) => this.observationBundle.set(b),
@@ -140,6 +140,18 @@ export class HcViewComponent {
 
   setFhirTab(tab: FhirTab): void {
     this.fhirTab.set(tab);
+  }
+
+  medicationCount(): number {
+    const bundle = this.clinicalBundle();
+    if (!bundle) return 0;
+    return bundle.entry?.filter((e: any) => e.resource?.resourceType === 'MedicationRequest').length ?? 0;
+  }
+
+  conditionCount(): number {
+    const bundle = this.clinicalBundle();
+    if (!bundle) return 0;
+    return bundle.entry?.filter((e: any) => e.resource?.resourceType === 'Condition').length ?? 0;
   }
 
   episodeNumber(id: string): string {
