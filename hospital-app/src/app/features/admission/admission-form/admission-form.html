@@ -22,6 +22,10 @@
           <dt>Estado</dt>
           <dd>{{ admitted.status }}</dd>
         </div>
+        <div class="summary-row highlight">
+          <dt>Nodo de registro</dt>
+          <dd>{{ nodeName() }} ({{ nodeId() }})</dd>
+        </div>
         <div class="summary-row">
           <dt>ID de Admisión</dt>
           <dd class="mono">{{ admitted.id }}</dd>

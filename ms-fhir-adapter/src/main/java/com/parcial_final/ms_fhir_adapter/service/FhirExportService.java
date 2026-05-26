@@ -1,6 +1,8 @@
 package com.parcial_final.ms_fhir_adapter.service;
 
 import ca.uhn.fhir.context.FhirContext;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parcial_final.ms_fhir_adapter.dto.CorePatientRegistrationDTO;
 import com.parcial_final.ms_fhir_adapter.dto.CoverageRegistrationDTO;
 import com.parcial_final.ms_fhir_adapter.dto.InternalPatientDTO;
@@ -31,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,6 +44,7 @@ public class FhirExportService {
 
     private final FhirContext fhirContext;
     private final FhirResourceRepository fhirResourceRepository;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public String exportPatient(InternalPatientDTO internalPatient) {
@@ -132,6 +136,38 @@ public class FhirExportService {
             }
         }
         return fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(bundle);
+    }
+
+    @Transactional
+    public String registerFhirResource(String resourceType, Map<String, Object> body) {
+        try {
+            String fhirJson = objectMapper.writeValueAsString(body);
+            var parser = fhirContext.newJsonParser().setPrettyPrint(true);
+            var resource = (org.hl7.fhir.r5.model.Resource) parser.parseResource(fhirJson);
+            String resourceId = resource.getIdPart();
+            if (resourceId == null || resourceId.isBlank()) {
+                resourceId = UUID.randomUUID().toString();
+                resource.setId(resourceId);
+                fhirJson = parser.encodeResourceToString(resource);
+            } else {
+                fhirJson = parser.encodeResourceToString(resource);
+            }
+            upsertResource(resourceType, resourceId, fhirJson);
+            return fhirJson;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize FHIR resource body", e);
+        }
+    }
+
+    public Optional<String> getResourceById(String resourceType, String resourceId) {
+        return fhirResourceRepository.findByResourceTypeAndResourceId(resourceType, resourceId)
+                .map(FhirResourceEntity::getPayloadJson);
+    }
+
+    @Transactional
+    public void deleteResource(String resourceType, String resourceId) {
+        fhirResourceRepository.findByResourceTypeAndResourceId(resourceType, resourceId)
+                .ifPresent(fhirResourceRepository::delete);
     }
 
     private Patient buildFhirPatient(InternalPatientDTO internalPatient) {

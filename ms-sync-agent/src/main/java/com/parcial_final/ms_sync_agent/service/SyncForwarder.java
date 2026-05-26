@@ -34,7 +34,7 @@ public class SyncForwarder {
     public void forward(SyncEvent syncEvent) {
         for (String peer : peerNodes) {
             try {
-                restTemplate.postForEntity(peer + "/sync/events", syncEvent, Void.class);
+                restTemplate.postForEntity(peer + "/events", syncEvent, Void.class);
                 forwardedCount.incrementAndGet();
                 log.info("[SYNC] Forwarded {} to {}", syncEvent.getEventType(), peer);
             } catch (Exception e) {

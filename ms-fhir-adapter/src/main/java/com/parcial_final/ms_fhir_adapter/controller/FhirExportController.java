@@ -8,11 +8,16 @@ import com.parcial_final.ms_fhir_adapter.dto.TriageResponseDTO;
 import com.parcial_final.ms_fhir_adapter.service.FhirExportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("")
@@ -54,5 +59,35 @@ public class FhirExportController {
     @GetMapping(value = "/observations", produces = MediaType.APPLICATION_JSON_VALUE)
     public String getAllObservations() {
         return fhirExportService.getResourcesByType("Observation");
+    }
+
+    @PostMapping(value = "/condition", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> registerCondition(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(fhirExportService.registerFhirResource("Condition", body));
+    }
+
+    @PostMapping(value = "/medication-request", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> registerMedicationRequest(@RequestBody Map<String, Object> body) {
+        return ResponseEntity.ok(fhirExportService.registerFhirResource("MedicationRequest", body));
+    }
+
+    @GetMapping(value = "/patients/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> getPatient(@PathVariable("id") String id) {
+        return fhirExportService.getResourceById("Patient", id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping(value = "/observations/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> getObservation(@PathVariable("id") String id) {
+        return fhirExportService.getResourceById("Observation", id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping(value = "/resources/{type}/{id}")
+    public ResponseEntity<Void> deleteResource(@PathVariable("type") String type, @PathVariable("id") String id) {
+        fhirExportService.deleteResource(type, id);
+        return ResponseEntity.noContent().build();
     }
 }

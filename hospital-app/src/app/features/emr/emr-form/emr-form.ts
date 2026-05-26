@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AdmissionService } from '../../../core/services/admission.service';
 import { EmrService } from '../../../core/services/emr.service';
 import { FhirEmrService } from '../../../core/services/fhir-emr.service';
+import { FhirService } from '../../../core/services/fhir.service';
 import { AdmissionResponse } from '../../../core/models/admission.model';
 import {
   EmrResponse,
@@ -23,6 +24,7 @@ export class EmrFormComponent {
   private readonly admissionService = inject(AdmissionService);
   private readonly emrService = inject(EmrService);
   private readonly fhirBuilder = inject(FhirEmrService);
+  private readonly fhirService = inject(FhirService);
 
   readonly ROUTES = MEDICATION_ROUTES;
   readonly FREQUENCIES = FREQUENCY_OPTIONS;
@@ -170,19 +172,34 @@ export class EmrFormComponent {
     const v = this.form.value;
     const a = this.selectedAdmission();
 
+    const patientId = a?.patientId ?? '';
+    const admissionId = v.admissionId!;
+    const filteredDiagnoses = (v.diagnoses ?? []).filter((d: any) => d?.description);
+    const filteredMedications = (v.medications ?? []).filter((m: any) => m?.medicationName);
+
     this.emrService
       .create({
-        admissionId: v.admissionId!,
-        patientId: a?.patientId ?? '',
+        admissionId,
+        patientId,
         anamnesis: v.anamnesis!,
-        diagnoses: (v.diagnoses ?? []).filter((d: any) => d?.description) as any,
-        medications: (v.medications ?? []).filter((m: any) => m?.medicationName) as any,
+        diagnoses: filteredDiagnoses as any,
+        medications: filteredMedications as any,
         clinicianNotes: v.clinicianNotes ?? '',
       })
       .subscribe({
         next: (res) => {
           this.success.set(res);
           this.submitting.set(false);
+          for (const d of filteredDiagnoses) {
+            this.fhirService.registerCondition(
+              this.fhirBuilder.buildCondition(d as any, patientId, admissionId)
+            ).subscribe({ error: (e) => console.warn('FHIR condition failed:', e) });
+          }
+          for (const m of filteredMedications) {
+            this.fhirService.registerMedicationRequest(
+              this.fhirBuilder.buildMedicationRequest(m as any, patientId, admissionId)
+            ).subscribe({ error: (e) => console.warn('FHIR medication failed:', e) });
+          }
         },
         error: () => {
           this.error.set('No se pudo guardar el registro. Verifique que el gateway esté activo.');

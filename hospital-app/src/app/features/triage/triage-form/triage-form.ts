@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AdmissionService } from '../../../core/services/admission.service';
 import { ManchesterClassifierService } from '../../../core/services/manchester-classifier.service';
 import { TriageService } from '../../../core/services/triage.service';
+import { FhirService } from '../../../core/services/fhir.service';
 import { AdmissionResponse } from '../../../core/models/admission.model';
 import {
   TRIAGE_CATEGORIES,
@@ -24,6 +25,7 @@ export class TriageFormComponent {
   private readonly admissionService = inject(AdmissionService);
   private readonly classifier = inject(ManchesterClassifierService);
   private readonly triageService = inject(TriageService);
+  private readonly fhirService = inject(FhirService);
 
   readonly CATEGORIES = TRIAGE_CATEGORIES;
   readonly CATEGORY_KEYS: TriageCategory[] = ['RED', 'ORANGE', 'YELLOW', 'GREEN', 'BLUE'];
@@ -135,6 +137,18 @@ export class TriageFormComponent {
         next: (res) => {
           this.success.set(res);
           this.submitting.set(false);
+          this.fhirService.registerTriage({
+            patientId: selectedAdmission?.patientId ?? '',
+            episodeNumber: admissionId,
+            heartRate: v.heartRate ?? null,
+            respiratoryRate: v.respiratoryRate ?? null,
+            oxygenSaturation: v.oxygenSaturation ?? null,
+            temperatureCelsius: v.temperature ?? null,
+            systolicBloodPressure: v.systolicBp ?? null,
+            diastolicBloodPressure: v.diastolicBp ?? null,
+            painScale0To10: v.painScore ?? null,
+            triageScale: 'MANCHESTER',
+          }).subscribe({ error: (e) => console.warn('FHIR triage registration failed:', e) });
         },
         error: () => {
           this.error.set(

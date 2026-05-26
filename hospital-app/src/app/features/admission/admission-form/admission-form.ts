@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AdmissionService } from '../../../core/services/admission.service';
+import { NodeService } from '../../../core/services/node.service';
 import { AdmissionResponse } from '../../../core/models/admission.model';
 
 @Component({
@@ -15,10 +16,13 @@ export class AdmissionFormComponent {
   private readonly fb = inject(FormBuilder);
   private readonly admissionService = inject(AdmissionService);
   private readonly router = inject(Router);
+  private readonly nodeService = inject(NodeService);
 
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly success = signal<AdmissionResponse | null>(null);
+  readonly nodeName = computed(() => this.nodeService.selectedNode().name);
+  readonly nodeId = computed(() => this.nodeService.selectedNode().id);
 
   readonly form = this.fb.group({
     firstName: ['', [Validators.required, Validators.minLength(2)]],
