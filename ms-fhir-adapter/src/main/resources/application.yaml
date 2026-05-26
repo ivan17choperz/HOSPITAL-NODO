@@ -1,6 +1,17 @@
 spring:
   application:
     name: ms-fhir-adapter
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/hospital_db}
+    username: ${SPRING_DATASOURCE_USERNAME:user}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  flyway:
+    enabled: true
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: 5672

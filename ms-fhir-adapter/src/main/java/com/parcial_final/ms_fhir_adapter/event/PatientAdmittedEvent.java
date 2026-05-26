@@ -7,13 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class PatientAdmittedEvent {
-    private String patientId;
+    private UUID patientId;
     private String firstName;
     private String lastName;
     private String gender;

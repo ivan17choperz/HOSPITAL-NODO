@@ -1,0 +1,116 @@
+spring:
+  application:
+    name: ms-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: admission-docs
+          uri: ${MS_ADMISSION_URL:http://localhost:8081}
+          predicates:
+            - Path=/v3/api-docs/admission
+          filters:
+            - SetPath=/v3/api-docs
+
+        - id: discharge-docs
+          uri: ${MS_DISCHARGE_URL:http://localhost:8082}
+          predicates:
+            - Path=/v3/api-docs/discharge
+          filters:
+            - SetPath=/v3/api-docs
+
+        - id: emr-docs
+          uri: ${MS_EMR_URL:http://localhost:8083}
+          predicates:
+            - Path=/v3/api-docs/emr
+          filters:
+            - SetPath=/v3/api-docs
+
+        - id: laboratory-docs
+          uri: ${MS_LABORATORY_URL:http://localhost:8084}
+          predicates:
+            - Path=/v3/api-docs/laboratory
+          filters:
+            - SetPath=/v3/api-docs
+
+        - id: fhir-docs
+          uri: ${MS_FHIR_ADAPTER_URL:http://localhost:8085}
+          predicates:
+            - Path=/v3/api-docs/fhir
+          filters:
+            - SetPath=/v3/api-docs
+
+        - id: sync-docs
+          uri: ${MS_SYNC_AGENT_URL:http://localhost:8086}
+          predicates:
+            - Path=/v3/api-docs/sync
+          filters:
+            - SetPath=/v3/api-docs
+
+        - id: admission-route
+          uri: ${MS_ADMISSION_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/admission/**
+          filters:
+            - RewritePath=/api/admission/(?<segment>.*), /${segment}
+
+        - id: discharge-route
+          uri: ${MS_DISCHARGE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/discharge/**
+          filters:
+            - RewritePath=/api/discharge/(?<segment>.*), /${segment}
+
+        - id: emr-route
+          uri: ${MS_EMR_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/emr/**
+          filters:
+            - RewritePath=/api/emr/(?<segment>.*), /${segment}
+
+        - id: laboratory-route
+          uri: ${MS_LABORATORY_URL:http://localhost:8084}
+          predicates:
+            - Path=/api/laboratory/**
+          filters:
+            - RewritePath=/api/laboratory/(?<segment>.*), /${segment}
+
+        - id: fhir-route
+          uri: ${MS_FHIR_ADAPTER_URL:http://localhost:8085}
+          predicates:
+            - Path=/api/fhir/**
+
+        - id: sync-route
+          uri: ${MS_SYNC_AGENT_URL:http://localhost:8086}
+          predicates:
+            - Path=/api/sync/**
+          filters:
+            - RewritePath=/api/sync/(?<segment>.*), /${segment}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: ms-admission
+        url: /v3/api-docs/admission
+      - name: ms-discharge
+        url: /v3/api-docs/discharge
+      - name: ms-emr
+        url: /v3/api-docs/emr
+      - name: ms-laboratory
+        url: /v3/api-docs/laboratory
+      - name: ms-fhir-adapter
+        url: /v3/api-docs/fhir
+      - name: ms-sync-agent
+        url: /v3/api-docs/sync
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  port: 8080

@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -15,8 +16,8 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class AdmissionRequestDTO {
 
-    @NotBlank
-    private String patientId;
+    @NotNull
+    private UUID patientId;
 
     @NotBlank
     private String firstName;

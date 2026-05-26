@@ -6,13 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class InternalPatientDTO {
-    private String id;
+    private UUID id;
     private String firstName;
     private String lastName;
     private String gender;

@@ -1,19 +1,33 @@
 package com.parcial_final.ms_fhir_adapter.service;
 
 import ca.uhn.fhir.context.FhirContext;
+import com.parcial_final.ms_fhir_adapter.dto.CorePatientRegistrationDTO;
+import com.parcial_final.ms_fhir_adapter.dto.CoverageRegistrationDTO;
 import com.parcial_final.ms_fhir_adapter.dto.InternalPatientDTO;
+import com.parcial_final.ms_fhir_adapter.entity.FhirResourceEntity;
+import com.parcial_final.ms_fhir_adapter.repository.FhirResourceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.r5.model.Bundle;
+import org.hl7.fhir.r5.model.CodeableConcept;
+import org.hl7.fhir.r5.model.ContactPoint;
+import org.hl7.fhir.r5.model.Coverage;
 import org.hl7.fhir.r5.model.Enumerations;
+import org.hl7.fhir.r5.model.Extension;
+import org.hl7.fhir.r5.model.HumanName;
+import org.hl7.fhir.r5.model.Identifier;
+import org.hl7.fhir.r5.model.Organization;
 import org.hl7.fhir.r5.model.Patient;
+import org.hl7.fhir.r5.model.Period;
+import org.hl7.fhir.r5.model.Reference;
+import org.hl7.fhir.r5.model.StringType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,20 +35,60 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class FhirExportService {
 
     private final FhirContext fhirContext;
-    private final List<Patient> patientStore = new CopyOnWriteArrayList<>();
+    private final FhirResourceRepository fhirResourceRepository;
 
+    @Transactional
     public String exportPatient(InternalPatientDTO internalPatient) {
         Patient fhirPatient = buildFhirPatient(internalPatient);
-        patientStore.removeIf(p -> internalPatient.getId().equals(p.getId()));
-        patientStore.add(fhirPatient);
-        return fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(fhirPatient);
+        String payload = fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(fhirPatient);
+        upsertResource("Patient", fhirPatient.getIdPart(), payload);
+        return payload;
+    }
+
+    @Transactional
+    public String registerCorePatient(CorePatientRegistrationDTO patientDTO) {
+        Patient patient = buildCoreRegistrationPatient(patientDTO);
+        String payload = fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(patient);
+        upsertResource("Patient", patient.getIdPart(), payload);
+        return payload;
+    }
+
+    @Transactional
+    public String registerCoverage(CoverageRegistrationDTO coverageDTO) {
+        Organization payer = buildPayerOrganization(coverageDTO);
+        Coverage coverage = buildCoverage(coverageDTO, payer);
+
+        Bundle transaction = new Bundle();
+        transaction.setType(Bundle.BundleType.TRANSACTION);
+        transaction.addEntry()
+                .setResource(payer)
+                .getRequest()
+                .setMethod(Bundle.HTTPVerb.POST)
+                .setUrl("Organization");
+        transaction.addEntry()
+                .setResource(coverage)
+                .getRequest()
+                .setMethod(Bundle.HTTPVerb.POST)
+                .setUrl("Coverage");
+
+        String payerId = coverageDTO.getPayerIdentifier() != null ? coverageDTO.getPayerIdentifier() : payer.getName();
+        upsertResource("Organization", payerId, fhirContext.newJsonParser().encodeResourceToString(payer));
+
+        String coverageId = coverageDTO.getAffiliationNumber() != null
+                ? coverageDTO.getAffiliationNumber()
+                : coverageDTO.getPatientId() + "-coverage";
+        upsertResource("Coverage", coverageId, fhirContext.newJsonParser().encodeResourceToString(coverage));
+
+        return fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(transaction);
     }
 
     public String getAllPatients() {
         Bundle bundle = new Bundle();
         bundle.setType(Bundle.BundleType.SEARCHSET);
-        bundle.setTotal(patientStore.size());
-        for (Patient patient : patientStore) {
+        List<FhirResourceEntity> persistedPatients = fhirResourceRepository.findAllByResourceType("Patient");
+        bundle.setTotal(persistedPatients.size());
+        for (FhirResourceEntity stored : persistedPatients) {
+            Patient patient = fhirContext.newJsonParser().parseResource(Patient.class, stored.getPayloadJson());
             bundle.addEntry().setResource(patient);
         }
         return fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(bundle);
@@ -43,7 +97,9 @@ public class FhirExportService {
     private Patient buildFhirPatient(InternalPatientDTO internalPatient) {
         Patient fhirPatient = new Patient();
 
-        fhirPatient.setId(internalPatient.getId());
+        if (internalPatient.getId() != null) {
+            fhirPatient.setId(internalPatient.getId().toString());
+        }
 
         fhirPatient.addIdentifier()
                 .setSystem("http://hospital.com/identifiers/patient")
@@ -67,5 +123,202 @@ public class FhirExportService {
         }
 
         return fhirPatient;
+    }
+
+    private Patient buildCoreRegistrationPatient(CorePatientRegistrationDTO dto) {
+        Patient patient = new Patient();
+
+        if (dto.getId() != null) {
+            patient.setId(dto.getId().toString());
+        }
+
+        if (dto.getDocumentType() != null || dto.getDocumentNumber() != null) {
+            patient.addIdentifier()
+                    .setSystem("http://hospital.com/identifiers/national-document")
+                    .setValue(dto.getDocumentNumber())
+                    .setType(new org.hl7.fhir.r5.model.CodeableConcept().setText(dto.getDocumentType()));
+        }
+
+        HumanName officialName = patient.addName().setUse(HumanName.NameUse.OFFICIAL);
+        officialName.setFamily(joinNames(dto.getLastName(), dto.getSecondLastName()));
+        if (dto.getFirstName() != null) {
+            officialName.addGiven(dto.getFirstName());
+        }
+        if (dto.getMiddleName() != null) {
+            officialName.addGiven(dto.getMiddleName());
+        }
+
+        if (dto.getBirthDate() != null) {
+            patient.setBirthDate(Date.from(dto.getBirthDate().atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        }
+
+        if (dto.getBiologicalSex() != null) {
+            try {
+                patient.setGender(Enumerations.AdministrativeGender.fromCode(dto.getBiologicalSex().toLowerCase()));
+            } catch (Exception e) {
+                patient.setGender(Enumerations.AdministrativeGender.UNKNOWN);
+            }
+        }
+
+        if (dto.getGenderIdentity() != null) {
+            patient.addExtension(new Extension(
+                    "http://hl7.org/fhir/StructureDefinition/patient-genderIdentity",
+                    new org.hl7.fhir.r5.model.CodeableConcept().setText(dto.getGenderIdentity())
+            ));
+        }
+
+        if (dto.getAge() != null) {
+            patient.addExtension(new Extension(
+                    "http://hospital.com/fhir/StructureDefinition/patient-age-reported",
+                    new StringType(String.valueOf(dto.getAge()))
+            ));
+        }
+
+        if (dto.getMaritalStatus() != null) {
+            patient.setMaritalStatus(new org.hl7.fhir.r5.model.CodeableConcept().setText(dto.getMaritalStatus()));
+        }
+
+        if (dto.getBirthCountry() != null || dto.getBirthState() != null || dto.getBirthCity() != null) {
+            org.hl7.fhir.r5.model.Address birthPlace = new org.hl7.fhir.r5.model.Address()
+                    .setCountry(dto.getBirthCountry())
+                    .setState(dto.getBirthState())
+                    .setCity(dto.getBirthCity());
+            patient.addExtension(new Extension(
+                    "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
+                    birthPlace
+            ));
+        }
+
+        if (dto.getAddressLine() != null || dto.getResidenceCity() != null || dto.getResidenceState() != null || dto.getResidenceCountry() != null) {
+            org.hl7.fhir.r5.model.Address address = patient.addAddress();
+            if (dto.getAddressLine() != null) {
+                address.addLine(dto.getAddressLine());
+            }
+            if (dto.getAddressNumberOrApartment() != null) {
+                address.addLine(dto.getAddressNumberOrApartment());
+            }
+            if (dto.getNeighborhood() != null) {
+                address.setDistrict(dto.getNeighborhood());
+            }
+            address.setPostalCode(dto.getPostalCode());
+            address.setCity(dto.getResidenceCity());
+            address.setState(dto.getResidenceState());
+            address.setCountry(dto.getResidenceCountry());
+        }
+
+        addTelecom(patient, dto.getLandlinePhone(), ContactPoint.ContactPointSystem.PHONE, ContactPoint.ContactPointUse.HOME);
+        addTelecom(patient, dto.getMobilePhone(), ContactPoint.ContactPointSystem.PHONE, ContactPoint.ContactPointUse.MOBILE);
+        addTelecom(patient, dto.getEmail(), ContactPoint.ContactPointSystem.EMAIL, ContactPoint.ContactPointUse.HOME);
+
+        if (dto.getEmergencyContactFullName() != null || dto.getEmergencyPhone() != null || dto.getEmergencyRelationship() != null) {
+            Patient.ContactComponent emergencyContact = patient.addContact();
+            if (dto.getEmergencyContactFullName() != null) {
+                emergencyContact.setName(new HumanName().setText(dto.getEmergencyContactFullName()));
+            }
+            if (dto.getEmergencyRelationship() != null) {
+                emergencyContact.addRelationship(new org.hl7.fhir.r5.model.CodeableConcept().setText(dto.getEmergencyRelationship()));
+            }
+            if (dto.getEmergencyPhone() != null) {
+                emergencyContact.addTelecom(new ContactPoint()
+                        .setSystem(ContactPoint.ContactPointSystem.PHONE)
+                        .setUse(ContactPoint.ContactPointUse.MOBILE)
+                        .setValue(dto.getEmergencyPhone()));
+            }
+        }
+
+        return patient;
+    }
+
+    private String joinNames(String partOne, String partTwo) {
+        if (partOne == null) {
+            return partTwo;
+        }
+        if (partTwo == null) {
+            return partOne;
+        }
+        return partOne + " " + partTwo;
+    }
+
+    private void addTelecom(Patient patient, String value, ContactPoint.ContactPointSystem system, ContactPoint.ContactPointUse use) {
+        if (value == null) {
+            return;
+        }
+        patient.addTelecom(new ContactPoint()
+                .setSystem(system)
+                .setUse(use)
+                .setValue(value));
+    }
+
+    private Organization buildPayerOrganization(CoverageRegistrationDTO dto) {
+        Organization payer = new Organization();
+        payer.setName(dto.getPayerName());
+
+        if (dto.getPayerIdentifier() != null) {
+            payer.addIdentifier(new Identifier()
+                    .setSystem("http://hospital.com/identifiers/payer")
+                    .setValue(dto.getPayerIdentifier()));
+        }
+
+        return payer;
+    }
+
+    private Coverage buildCoverage(CoverageRegistrationDTO dto, Organization payer) {
+        Coverage coverage = new Coverage();
+        coverage.setStatus(Enumerations.FinancialResourceStatusCodes.ACTIVE);
+
+        if (dto.getAffiliationType() != null) {
+            coverage.setType(new CodeableConcept().setText(dto.getAffiliationType()));
+        }
+
+        if (dto.getAffiliationNumber() != null) {
+            coverage.addIdentifier(new Identifier()
+                    .setSystem("http://hospital.com/identifiers/coverage-affiliation")
+                    .setValue(dto.getAffiliationNumber()));
+        }
+
+        if (dto.getCoveragePlan() != null) {
+            coverage.addIdentifier(new Identifier()
+                    .setSystem("http://hospital.com/identifiers/coverage-plan")
+                    .setValue(dto.getCoveragePlan()));
+        }
+
+        if (dto.getCoverageLevel() != null) {
+            coverage.addIdentifier(new Identifier()
+                    .setSystem("http://hospital.com/identifiers/coverage-level")
+                    .setValue(dto.getCoverageLevel()));
+        }
+
+        if (dto.getAffiliationStartDate() != null || dto.getAffiliationEndDate() != null) {
+            Period period = new Period();
+            if (dto.getAffiliationStartDate() != null) {
+                period.setStart(java.sql.Date.valueOf(dto.getAffiliationStartDate()));
+            }
+            if (dto.getAffiliationEndDate() != null) {
+                period.setEnd(java.sql.Date.valueOf(dto.getAffiliationEndDate()));
+            }
+            coverage.setPeriod(period);
+        }
+
+        if (dto.getPatientId() != null) {
+            coverage.setBeneficiary(new Reference("Patient/" + dto.getPatientId()));
+        }
+
+        if (payer.getName() != null) {
+            coverage.setInsurer(new Reference("Organization?name=" + payer.getName()));
+        }
+
+        return coverage;
+    }
+
+    private void upsertResource(String resourceType, String resourceId, String payload) {
+        if (resourceId == null || resourceId.isBlank()) {
+            return;
+        }
+        Optional<FhirResourceEntity> existing = fhirResourceRepository.findByResourceTypeAndResourceId(resourceType, resourceId);
+        FhirResourceEntity entity = existing.orElseGet(FhirResourceEntity::new);
+        entity.setResourceType(resourceType);
+        entity.setResourceId(resourceId);
+        entity.setPayloadJson(payload);
+        fhirResourceRepository.save(entity);
     }
 }

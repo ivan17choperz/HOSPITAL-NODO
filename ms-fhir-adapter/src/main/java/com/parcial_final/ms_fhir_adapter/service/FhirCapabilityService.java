@@ -3,7 +3,6 @@ package com.parcial_final.ms_fhir_adapter.service;
 import ca.uhn.fhir.context.FhirContext;
 import lombok.RequiredArgsConstructor;
 import org.hl7.fhir.r5.model.CapabilityStatement;
-import org.hl7.fhir.r5.model.CodeType;
 import org.hl7.fhir.r5.model.DateTimeType;
 import org.hl7.fhir.r5.model.Enumerations;
 import org.springframework.stereotype.Service;
@@ -21,9 +20,9 @@ public class FhirCapabilityService {
 
         cs.setStatus(Enumerations.PublicationStatus.ACTIVE);
         cs.setDateElement(new DateTimeType(new Date()));
-        cs.setKind(CapabilityStatement.CapabilityStatementKind.INSTANCE);
+        cs.setKind(Enumerations.CapabilityStatementKind.INSTANCE);
         cs.setFhirVersion(Enumerations.FHIRVersion._5_0_0);
-        cs.addFormat(new CodeType("application/fhir+json"));
+        cs.addFormat("application/fhir+json");
         cs.setTitle("Hospital FHIR Adapter - Capability Statement");
         cs.setName("HospitalFhirAdapter");
         cs.setDescription("FHIR R5 adapter for the hospital distributed system. Exposes patient data in FHIR-compliant format.");
