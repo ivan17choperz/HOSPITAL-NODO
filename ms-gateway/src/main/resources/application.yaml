@@ -128,6 +128,8 @@ springdoc:
         url: /v3/api-docs/laboratory
       - name: ms-fhir-adapter
         url: /v3/api-docs/fhir
+      - name: ms-triage
+        url: /v3/api-docs/triage
       - name: ms-sync-agent
         url: /v3/api-docs/sync
 

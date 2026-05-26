@@ -7,12 +7,15 @@
 ##    RabbitMQ Node1: http://localhost:15672  (guest/guest)
 ##    RabbitMQ Node2: http://localhost:15673  (guest/guest)
 ##    RabbitMQ Node3: http://localhost:15674  (guest/guest)
-##    API Gateway Node1: http://localhost:8080
-##    API Gateway Node2: http://localhost:8090
-##    API Gateway Node3: http://localhost:8100
-##    Sync Status Node1: http://localhost:8086/sync/status
-##    Sync Status Node2: http://localhost:8186/sync/status
-##    Sync Status Node3: http://localhost:8286/sync/status
+##    Spring Gateway Node1: http://localhost:8080
+##    Spring Gateway Node2: http://localhost:8090
+##    Spring Gateway Node3: http://localhost:8100
+##    Swagger UI Node1:     http://localhost:8080/swagger-ui.html
+##    Swagger UI Node2:     http://localhost:8090/swagger-ui.html
+##    Swagger UI Node3:     http://localhost:8100/swagger-ui.html
+##    Sync Status Node1:    http://localhost:8086/status
+##    Sync Status Node2:    http://localhost:8186/status
+##    Sync Status Node3:    http://localhost:8286/status
 ## ============================================================
 
 services:
@@ -24,7 +27,8 @@ services:
   postgres-node1:
     image: postgres:17-alpine
     profiles: ["node1"]
-    container_name: hospital-node1-db`r`n    restart: unless-stopped
+    container_name: hospital-node1-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -34,6 +38,7 @@ services:
     volumes:
       - postgres_data_node1:/var/lib/postgresql/data
       - ./postgres/init-primary.sql:/docker-entrypoint-initdb.d/init-primary.sql:ro
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     command: >
       postgres
       -c wal_level=replica
@@ -51,7 +56,8 @@ services:
   postgres-node1-replica:
     image: postgres:17-alpine
     profiles: ["node1"]
-    container_name: hospital-node1-db-replica`r`n    restart: unless-stopped
+    container_name: hospital-node1-db-replica
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -74,7 +80,8 @@ services:
   rabbitmq-node1:
     image: rabbitmq:4-management-alpine
     profiles: ["node1"]
-    container_name: hospital-node1-mq`r`n    restart: unless-stopped
+    container_name: hospital-node1-mq
+    restart: unless-stopped
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -92,7 +99,8 @@ services:
   redis-node1:
     image: redis:7-alpine
     profiles: ["node1"]
-    container_name: hospital-node1-redis`r`n    restart: unless-stopped
+    container_name: hospital-node1-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     healthcheck:
@@ -106,7 +114,8 @@ services:
   ms-admission-node1:
     build: ./ms-admission
     profiles: ["node1"]
-    container_name: hospital-node1-admission`r`n    restart: unless-stopped
+    container_name: hospital-node1-admission
+    restart: unless-stopped
     ports:
       - "8081:8081"
     environment:
@@ -127,7 +136,8 @@ services:
   ms-discharge-node1:
     build: ./ms-discharge
     profiles: ["node1"]
-    container_name: hospital-node1-discharge`r`n    restart: unless-stopped
+    container_name: hospital-node1-discharge
+    restart: unless-stopped
     ports:
       - "8082:8082"
     environment:
@@ -148,7 +158,8 @@ services:
   ms-emr-node1:
     build: ./ms-emr
     profiles: ["node1"]
-    container_name: hospital-node1-emr`r`n    restart: unless-stopped
+    container_name: hospital-node1-emr
+    restart: unless-stopped
     ports:
       - "8083:8083"
     environment:
@@ -169,7 +180,8 @@ services:
   ms-laboratory-node1:
     build: ./ms-laboratory
     profiles: ["node1"]
-    container_name: hospital-node1-laboratory`r`n    restart: unless-stopped
+    container_name: hospital-node1-laboratory
+    restart: unless-stopped
     ports:
       - "8084:8084"
     environment:
@@ -190,7 +202,8 @@ services:
   ms-fhir-adapter-node1:
     build: ./ms-fhir-adapter
     profiles: ["node1"]
-    container_name: hospital-node1-fhir`r`n    restart: unless-stopped
+    container_name: hospital-node1-fhir
+    restart: unless-stopped
     ports:
       - "8085:8085"
     environment:
@@ -206,7 +219,8 @@ services:
   ms-sync-agent-node1:
     build: ./ms-sync-agent
     profiles: ["node1"]
-    container_name: hospital-node1-sync`r`n    restart: unless-stopped
+    container_name: hospital-node1-sync
+    restart: unless-stopped
     ports:
       - "8086:8086"
     environment:
@@ -232,7 +246,8 @@ services:
   ms-triage-node1:
     build: ./ms-triage
     profiles: ["node1"]
-    container_name: hospital-node1-triage`r`n    restart: unless-stopped
+    container_name: hospital-node1-triage
+    restart: unless-stopped
     ports:
       - "8087:8087"
     environment:
@@ -250,14 +265,21 @@ services:
     networks:
       - node1-network
 
-  nginx-node1:
-    image: nginx:alpine
+  ms-gateway-node1:
+    build: ./ms-gateway
     profiles: ["node1"]
-    container_name: hospital-node1-gateway`r`n    restart: unless-stopped
+    container_name: hospital-node1-gateway
+    restart: unless-stopped
     ports:
-      - "8080:80"
-    volumes:
-      - ./nginx/node1.conf:/etc/nginx/nginx.conf:ro
+      - "8080:8080"
+    environment:
+      - MS_ADMISSION_URL=http://ms-admission-node1:8081
+      - MS_DISCHARGE_URL=http://ms-discharge-node1:8082
+      - MS_EMR_URL=http://ms-emr-node1:8083
+      - MS_LABORATORY_URL=http://ms-laboratory-node1:8084
+      - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node1:8085
+      - MS_SYNC_AGENT_URL=http://ms-sync-agent-node1:8086
+      - MS_TRIAGE_URL=http://ms-triage-node1:8087
     depends_on:
       - ms-admission-node1
       - ms-discharge-node1
@@ -276,7 +298,8 @@ services:
   postgres-node2:
     image: postgres:17-alpine
     profiles: ["node2"]
-    container_name: hospital-node2-db`r`n    restart: unless-stopped
+    container_name: hospital-node2-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -286,11 +309,13 @@ services:
     volumes:
       - postgres_data_node2:/var/lib/postgresql/data
       - ./postgres/init-primary.sql:/docker-entrypoint-initdb.d/init-primary.sql:ro
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     command: >
       postgres
       -c wal_level=replica
       -c max_wal_senders=5
       -c wal_keep_size=64
+      -c hba_file=/etc/postgresql/pg_hba.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d hospital_db"]
       interval: 10s
@@ -302,7 +327,8 @@ services:
   postgres-node2-replica:
     image: postgres:17-alpine
     profiles: ["node2"]
-    container_name: hospital-node2-db-replica`r`n    restart: unless-stopped
+    container_name: hospital-node2-db-replica
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -325,7 +351,8 @@ services:
   rabbitmq-node2:
     image: rabbitmq:4-management-alpine
     profiles: ["node2"]
-    container_name: hospital-node2-mq`r`n    restart: unless-stopped
+    container_name: hospital-node2-mq
+    restart: unless-stopped
     ports:
       - "5673:5672"
       - "15673:15672"
@@ -343,7 +370,8 @@ services:
   redis-node2:
     image: redis:7-alpine
     profiles: ["node2"]
-    container_name: hospital-node2-redis`r`n    restart: unless-stopped
+    container_name: hospital-node2-redis
+    restart: unless-stopped
     ports:
       - "6380:6379"
     healthcheck:
@@ -357,7 +385,8 @@ services:
   ms-admission-node2:
     build: ./ms-admission
     profiles: ["node2"]
-    container_name: hospital-node2-admission`r`n    restart: unless-stopped
+    container_name: hospital-node2-admission
+    restart: unless-stopped
     ports:
       - "8181:8081"
     environment:
@@ -378,7 +407,8 @@ services:
   ms-discharge-node2:
     build: ./ms-discharge
     profiles: ["node2"]
-    container_name: hospital-node2-discharge`r`n    restart: unless-stopped
+    container_name: hospital-node2-discharge
+    restart: unless-stopped
     ports:
       - "8182:8082"
     environment:
@@ -399,7 +429,8 @@ services:
   ms-emr-node2:
     build: ./ms-emr
     profiles: ["node2"]
-    container_name: hospital-node2-emr`r`n    restart: unless-stopped
+    container_name: hospital-node2-emr
+    restart: unless-stopped
     ports:
       - "8183:8083"
     environment:
@@ -420,7 +451,8 @@ services:
   ms-laboratory-node2:
     build: ./ms-laboratory
     profiles: ["node2"]
-    container_name: hospital-node2-laboratory`r`n    restart: unless-stopped
+    container_name: hospital-node2-laboratory
+    restart: unless-stopped
     ports:
       - "8184:8084"
     environment:
@@ -441,7 +473,8 @@ services:
   ms-fhir-adapter-node2:
     build: ./ms-fhir-adapter
     profiles: ["node2"]
-    container_name: hospital-node2-fhir`r`n    restart: unless-stopped
+    container_name: hospital-node2-fhir
+    restart: unless-stopped
     ports:
       - "8185:8085"
     environment:
@@ -457,7 +490,8 @@ services:
   ms-sync-agent-node2:
     build: ./ms-sync-agent
     profiles: ["node2"]
-    container_name: hospital-node2-sync`r`n    restart: unless-stopped
+    container_name: hospital-node2-sync
+    restart: unless-stopped
     ports:
       - "8186:8086"
     environment:
@@ -483,7 +517,8 @@ services:
   ms-triage-node2:
     build: ./ms-triage
     profiles: ["node2"]
-    container_name: hospital-node2-triage`r`n    restart: unless-stopped
+    container_name: hospital-node2-triage
+    restart: unless-stopped
     ports:
       - "8187:8087"
     environment:
@@ -501,14 +536,21 @@ services:
     networks:
       - node2-network
 
-  nginx-node2:
-    image: nginx:alpine
+  ms-gateway-node2:
+    build: ./ms-gateway
     profiles: ["node2"]
-    container_name: hospital-node2-gateway`r`n    restart: unless-stopped
+    container_name: hospital-node2-gateway
+    restart: unless-stopped
     ports:
-      - "8090:80"
-    volumes:
-      - ./nginx/node2.conf:/etc/nginx/nginx.conf:ro
+      - "8090:8080"
+    environment:
+      - MS_ADMISSION_URL=http://ms-admission-node2:8081
+      - MS_DISCHARGE_URL=http://ms-discharge-node2:8082
+      - MS_EMR_URL=http://ms-emr-node2:8083
+      - MS_LABORATORY_URL=http://ms-laboratory-node2:8084
+      - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node2:8085
+      - MS_SYNC_AGENT_URL=http://ms-sync-agent-node2:8086
+      - MS_TRIAGE_URL=http://ms-triage-node2:8087
     depends_on:
       - ms-admission-node2
       - ms-discharge-node2
@@ -527,7 +569,8 @@ services:
   postgres-node3:
     image: postgres:17-alpine
     profiles: ["node3"]
-    container_name: hospital-node3-db`r`n    restart: unless-stopped
+    container_name: hospital-node3-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -537,11 +580,13 @@ services:
     volumes:
       - postgres_data_node3:/var/lib/postgresql/data
       - ./postgres/init-primary.sql:/docker-entrypoint-initdb.d/init-primary.sql:ro
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     command: >
       postgres
       -c wal_level=replica
       -c max_wal_senders=5
       -c wal_keep_size=64
+      -c hba_file=/etc/postgresql/pg_hba.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d hospital_db"]
       interval: 10s
@@ -553,7 +598,8 @@ services:
   postgres-node3-replica:
     image: postgres:17-alpine
     profiles: ["node3"]
-    container_name: hospital-node3-db-replica`r`n    restart: unless-stopped
+    container_name: hospital-node3-db-replica
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -576,7 +622,8 @@ services:
   rabbitmq-node3:
     image: rabbitmq:4-management-alpine
     profiles: ["node3"]
-    container_name: hospital-node3-mq`r`n    restart: unless-stopped
+    container_name: hospital-node3-mq
+    restart: unless-stopped
     ports:
       - "5674:5672"
       - "15674:15672"
@@ -594,7 +641,8 @@ services:
   redis-node3:
     image: redis:7-alpine
     profiles: ["node3"]
-    container_name: hospital-node3-redis`r`n    restart: unless-stopped
+    container_name: hospital-node3-redis
+    restart: unless-stopped
     ports:
       - "6381:6379"
     healthcheck:
@@ -608,7 +656,8 @@ services:
   ms-admission-node3:
     build: ./ms-admission
     profiles: ["node3"]
-    container_name: hospital-node3-admission`r`n    restart: unless-stopped
+    container_name: hospital-node3-admission
+    restart: unless-stopped
     ports:
       - "8281:8081"
     environment:
@@ -629,7 +678,8 @@ services:
   ms-discharge-node3:
     build: ./ms-discharge
     profiles: ["node3"]
-    container_name: hospital-node3-discharge`r`n    restart: unless-stopped
+    container_name: hospital-node3-discharge
+    restart: unless-stopped
     ports:
       - "8282:8082"
     environment:
@@ -650,7 +700,8 @@ services:
   ms-emr-node3:
     build: ./ms-emr
     profiles: ["node3"]
-    container_name: hospital-node3-emr`r`n    restart: unless-stopped
+    container_name: hospital-node3-emr
+    restart: unless-stopped
     ports:
       - "8283:8083"
     environment:
@@ -671,7 +722,8 @@ services:
   ms-laboratory-node3:
     build: ./ms-laboratory
     profiles: ["node3"]
-    container_name: hospital-node3-laboratory`r`n    restart: unless-stopped
+    container_name: hospital-node3-laboratory
+    restart: unless-stopped
     ports:
       - "8284:8084"
     environment:
@@ -692,7 +744,8 @@ services:
   ms-fhir-adapter-node3:
     build: ./ms-fhir-adapter
     profiles: ["node3"]
-    container_name: hospital-node3-fhir`r`n    restart: unless-stopped
+    container_name: hospital-node3-fhir
+    restart: unless-stopped
     ports:
       - "8285:8085"
     environment:
@@ -708,7 +761,8 @@ services:
   ms-sync-agent-node3:
     build: ./ms-sync-agent
     profiles: ["node3"]
-    container_name: hospital-node3-sync`r`n    restart: unless-stopped
+    container_name: hospital-node3-sync
+    restart: unless-stopped
     ports:
       - "8286:8086"
     environment:
@@ -734,7 +788,8 @@ services:
   ms-triage-node3:
     build: ./ms-triage
     profiles: ["node3"]
-    container_name: hospital-node3-triage`r`n    restart: unless-stopped
+    container_name: hospital-node3-triage
+    restart: unless-stopped
     ports:
       - "8287:8087"
     environment:
@@ -752,14 +807,21 @@ services:
     networks:
       - node3-network
 
-  nginx-node3:
-    image: nginx:alpine
+  ms-gateway-node3:
+    build: ./ms-gateway
     profiles: ["node3"]
-    container_name: hospital-node3-gateway`r`n    restart: unless-stopped
+    container_name: hospital-node3-gateway
+    restart: unless-stopped
     ports:
-      - "8100:80"
-    volumes:
-      - ./nginx/node3.conf:/etc/nginx/nginx.conf:ro
+      - "8100:8080"
+    environment:
+      - MS_ADMISSION_URL=http://ms-admission-node3:8081
+      - MS_DISCHARGE_URL=http://ms-discharge-node3:8082
+      - MS_EMR_URL=http://ms-emr-node3:8083
+      - MS_LABORATORY_URL=http://ms-laboratory-node3:8084
+      - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node3:8085
+      - MS_SYNC_AGENT_URL=http://ms-sync-agent-node3:8086
+      - MS_TRIAGE_URL=http://ms-triage-node3:8087
     depends_on:
       - ms-admission-node3
       - ms-discharge-node3
