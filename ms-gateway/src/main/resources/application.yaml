@@ -1,6 +1,11 @@
 spring:
   application:
     name: ms-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWK_URI:http://localhost:8180/realms/hospital/protocol/openid-connect/certs}
   cloud:
     gateway:
       globalcors:
@@ -107,6 +112,20 @@ spring:
           filters:
             - SetPath=/v3/api-docs
 
+        - id: doctor-route
+          uri: ${MS_DOCTOR_URL:http://localhost:8088}
+          predicates:
+            - Path=/api/doctor/**
+          filters:
+            - RewritePath=/api/doctor/(?<segment>.*), /${segment}
+
+        - id: doctor-docs
+          uri: ${MS_DOCTOR_URL:http://localhost:8088}
+          predicates:
+            - Path=/v3/api-docs/doctor
+          filters:
+            - SetPath=/v3/api-docs
+
         - id: sync-route
           uri: ${MS_SYNC_AGENT_URL:http://localhost:8086}
           predicates:
@@ -132,15 +151,19 @@ springdoc:
         url: /v3/api-docs/triage
       - name: ms-sync-agent
         url: /v3/api-docs/sync
+      - name: ms-doctor
+        url: /v3/api-docs/doctor
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
+    prometheus:
+      enabled: true
 
 server:
   port: 8080

@@ -59,7 +59,71 @@ public class FhirCapabilityService {
         bundleResource.setProfile("http://hl7.org/fhir/StructureDefinition/Bundle");
         bundleResource.addInteraction()
                 .setCode(CapabilityStatement.TypeRestfulInteraction.SEARCHTYPE)
-                .setDocumentation("Returned when querying all patients. Bundle type: searchset.");
+                .setDocumentation("Returned when querying resources by type. Bundle type: searchset.");
+
+        // Condition resource (ICD-10 diagnoses)
+        CapabilityStatement.CapabilityStatementRestResourceComponent conditionResource =
+                rest.addResource();
+        conditionResource.setType("Condition");
+        conditionResource.setProfile("http://hl7.org/fhir/StructureDefinition/Condition");
+        conditionResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.CREATE)
+                .setDocumentation("POST /api/fhir/condition");
+        conditionResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.READ)
+                .setDocumentation("GET /api/fhir/resources/Condition/{id}");
+        conditionResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.UPDATE)
+                .setDocumentation("PUT /api/fhir/resources/Condition/{id}");
+        conditionResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.DELETE)
+                .setDocumentation("DELETE /api/fhir/resources/Condition/{id}");
+        conditionResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.SEARCHTYPE)
+                .setDocumentation("GET /api/fhir/resources/Condition");
+
+        // MedicationRequest resource
+        CapabilityStatement.CapabilityStatementRestResourceComponent medResource =
+                rest.addResource();
+        medResource.setType("MedicationRequest");
+        medResource.setProfile("http://hl7.org/fhir/StructureDefinition/MedicationRequest");
+        medResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.CREATE)
+                .setDocumentation("POST /api/fhir/medication-request");
+        medResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.READ)
+                .setDocumentation("GET /api/fhir/resources/MedicationRequest/{id}");
+        medResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.UPDATE)
+                .setDocumentation("PUT /api/fhir/resources/MedicationRequest/{id}");
+        medResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.DELETE)
+                .setDocumentation("DELETE /api/fhir/resources/MedicationRequest/{id}");
+        medResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.SEARCHTYPE)
+                .setDocumentation("GET /api/fhir/resources/MedicationRequest");
+
+        // Observation resource (triage vital signs)
+        CapabilityStatement.CapabilityStatementRestResourceComponent obsResource =
+                rest.addResource();
+        obsResource.setType("Observation");
+        obsResource.setProfile("http://hl7.org/fhir/StructureDefinition/Observation");
+        obsResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.CREATE)
+                .setDocumentation("POST /api/fhir/triage");
+        obsResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.READ)
+                .setDocumentation("GET /api/fhir/observations/{id}");
+        obsResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.UPDATE)
+                .setDocumentation("PUT /api/fhir/resources/Observation/{id}");
+        obsResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.DELETE)
+                .setDocumentation("DELETE /api/fhir/resources/Observation/{id}");
+        obsResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.SEARCHTYPE)
+                .setDocumentation("GET /api/fhir/observations");
+
+        // Encounter resource (hospital admissions)
+        CapabilityStatement.CapabilityStatementRestResourceComponent encResource =
+                rest.addResource();
+        encResource.setType("Encounter");
+        encResource.setProfile("http://hl7.org/fhir/StructureDefinition/Encounter");
+        encResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.CREATE)
+                .setDocumentation("POST /api/fhir/resources/Encounter (generic endpoint)");
+        encResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.READ)
+                .setDocumentation("GET /api/fhir/resources/Encounter/{id}");
+        encResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.UPDATE)
+                .setDocumentation("PUT /api/fhir/resources/Encounter/{id}");
+        encResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.DELETE)
+                .setDocumentation("DELETE /api/fhir/resources/Encounter/{id}");
+        encResource.addInteraction().setCode(CapabilityStatement.TypeRestfulInteraction.SEARCHTYPE)
+                .setDocumentation("GET /api/fhir/resources/Encounter");
 
         // CapabilityStatement itself (metadata)
         CapabilityStatement.CapabilityStatementRestResourceComponent metaResource =

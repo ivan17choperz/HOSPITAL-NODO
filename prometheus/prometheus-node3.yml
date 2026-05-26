@@ -1,0 +1,49 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'ms-gateway-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-gateway-node3:8080']
+
+  - job_name: 'ms-admission-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-admission-node3:8081']
+
+  - job_name: 'ms-discharge-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-discharge-node3:8082']
+
+  - job_name: 'ms-emr-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-emr-node3:8083']
+
+  - job_name: 'ms-laboratory-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-laboratory-node3:8084']
+
+  - job_name: 'ms-fhir-adapter-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-fhir-adapter-node3:8085']
+
+  - job_name: 'ms-sync-agent-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-sync-agent-node3:8086']
+
+  - job_name: 'ms-triage-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-triage-node3:8087']
+
+  - job_name: 'ms-doctor-node3'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['ms-doctor-node3:8088']

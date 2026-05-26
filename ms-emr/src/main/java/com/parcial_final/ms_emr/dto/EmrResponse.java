@@ -21,5 +21,6 @@ public class EmrResponse {
     private List<Object> diagnoses;
     private List<Object> medications;
     private String clinicianNotes;
+    private UUID doctorId;
     private LocalDateTime createdAt;
 }

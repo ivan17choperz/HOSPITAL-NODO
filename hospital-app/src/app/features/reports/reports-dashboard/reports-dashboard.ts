@@ -1,8 +1,11 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DecimalPipe } from '@angular/common';
-import { interval } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { interval, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { ReportsService } from '../../../core/services/reports.service';
+import { NodeService } from '../../../core/services/node.service';
 import { ReportSnapshot } from '../../../core/models/reports.model';
 
 const REFRESH_SECONDS = 30;
@@ -18,11 +21,16 @@ const DONUT_C = 2 * Math.PI * DONUT_R;
 })
 export class ReportsDashboardComponent implements OnInit {
   private readonly reportsService = inject(ReportsService);
+  private readonly nodeService = inject(NodeService);
+  private readonly http = inject(HttpClient);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly snapshot = signal<ReportSnapshot | null>(null);
   readonly loading = signal(false);
   readonly countdown = signal(REFRESH_SECONDS);
+  readonly peerStatuses = signal<Record<string, string>>({});
+
+  readonly peerEntries = computed(() => Object.entries(this.peerStatuses()));
 
   readonly nodeBarMax = computed(() => {
     const s = this.snapshot();
@@ -85,6 +93,10 @@ export class ReportsDashboardComponent implements OnInit {
         },
         error: () => this.loading.set(false),
       });
+    const gatewayUrl = this.nodeService.selectedNode().gatewayUrl;
+    this.http.get<Record<string, string>>(`${gatewayUrl}/api/sync/status/peers`)
+      .pipe(takeUntilDestroyed(this.destroyRef), catchError(() => of({})))
+      .subscribe(s => this.peerStatuses.set(s));
   }
 
   barPct(value: number): number {

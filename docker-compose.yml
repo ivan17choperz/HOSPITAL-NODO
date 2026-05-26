@@ -111,6 +111,24 @@ services:
     networks:
       - node1-network
 
+  keycloak-node1:
+    image: quay.io/keycloak/keycloak:24.0.4
+    profiles: ["node1"]
+    container_name: hospital-keycloak
+    restart: unless-stopped
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME_STRICT=false
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak/hospital-realm.json:/opt/keycloak/data/import/hospital-realm.json:ro
+    ports:
+      - "8180:8080"
+    networks:
+      - node1-network
+
   ms-admission-node1:
     build: ./ms-admission
     profiles: ["node1"]
@@ -265,6 +283,25 @@ services:
     networks:
       - node1-network
 
+  ms-doctor-node1:
+    build: ./ms-doctor
+    profiles: ["node1"]
+    container_name: hospital-node1-doctor
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node1:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SERVER_PORT=8088
+      - NODE_ID=node1
+    depends_on:
+      postgres-node1:
+        condition: service_healthy
+    networks:
+      - node1-network
+
   ms-gateway-node1:
     build: ./ms-gateway
     profiles: ["node1"]
@@ -280,6 +317,8 @@ services:
       - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node1:8085
       - MS_SYNC_AGENT_URL=http://ms-sync-agent-node1:8086
       - MS_TRIAGE_URL=http://ms-triage-node1:8087
+      - MS_DOCTOR_URL=http://ms-doctor-node1:8088
+      - KEYCLOAK_JWK_URI=http://hospital-keycloak:8080/realms/hospital/protocol/openid-connect/certs
     depends_on:
       - ms-admission-node1
       - ms-discharge-node1
@@ -288,6 +327,8 @@ services:
       - ms-fhir-adapter-node1
       - ms-sync-agent-node1
       - ms-triage-node1
+      - ms-doctor-node1
+      - keycloak-node1
     networks:
       - node1-network
 
@@ -536,6 +577,25 @@ services:
     networks:
       - node2-network
 
+  ms-doctor-node2:
+    build: ./ms-doctor
+    profiles: ["node2"]
+    container_name: hospital-node2-doctor
+    restart: unless-stopped
+    ports:
+      - "8188:8088"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node2:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SERVER_PORT=8088
+      - NODE_ID=node2
+    depends_on:
+      postgres-node2:
+        condition: service_healthy
+    networks:
+      - node2-network
+
   ms-gateway-node2:
     build: ./ms-gateway
     profiles: ["node2"]
@@ -551,6 +611,7 @@ services:
       - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node2:8085
       - MS_SYNC_AGENT_URL=http://ms-sync-agent-node2:8086
       - MS_TRIAGE_URL=http://ms-triage-node2:8087
+      - MS_DOCTOR_URL=http://ms-doctor-node2:8088
     depends_on:
       - ms-admission-node2
       - ms-discharge-node2
@@ -559,6 +620,7 @@ services:
       - ms-fhir-adapter-node2
       - ms-sync-agent-node2
       - ms-triage-node2
+      - ms-doctor-node2
     networks:
       - node2-network
 
@@ -807,6 +869,25 @@ services:
     networks:
       - node3-network
 
+  ms-doctor-node3:
+    build: ./ms-doctor
+    profiles: ["node3"]
+    container_name: hospital-node3-doctor
+    restart: unless-stopped
+    ports:
+      - "8288:8088"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node3:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SERVER_PORT=8088
+      - NODE_ID=node3
+    depends_on:
+      postgres-node3:
+        condition: service_healthy
+    networks:
+      - node3-network
+
   ms-gateway-node3:
     build: ./ms-gateway
     profiles: ["node3"]
@@ -822,6 +903,7 @@ services:
       - MS_FHIR_ADAPTER_URL=http://ms-fhir-adapter-node3:8085
       - MS_SYNC_AGENT_URL=http://ms-sync-agent-node3:8086
       - MS_TRIAGE_URL=http://ms-triage-node3:8087
+      - MS_DOCTOR_URL=http://ms-doctor-node3:8088
     depends_on:
       - ms-admission-node3
       - ms-discharge-node3
@@ -830,6 +912,94 @@ services:
       - ms-fhir-adapter-node3
       - ms-sync-agent-node3
       - ms-triage-node3
+      - ms-doctor-node3
+    networks:
+      - node3-network
+
+  prometheus-node1:
+    image: prom/prometheus:v2.51.0
+    profiles: ["node1"]
+    container_name: hospital-node1-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus-node1.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - node1-network
+
+  grafana-node1:
+    image: grafana/grafana:10.4.2
+    profiles: ["node1"]
+    container_name: hospital-node1-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus-node1
+    networks:
+      - node1-network
+
+  prometheus-node2:
+    image: prom/prometheus:v2.51.0
+    profiles: ["node2"]
+    container_name: hospital-node2-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus-node2.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9091:9090"
+    networks:
+      - node2-network
+
+  grafana-node2:
+    image: grafana/grafana:10.4.2
+    profiles: ["node2"]
+    container_name: hospital-node2-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus-node2
+    networks:
+      - node2-network
+
+  prometheus-node3:
+    image: prom/prometheus:v2.51.0
+    profiles: ["node3"]
+    container_name: hospital-node3-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus-node3.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9092:9090"
+    networks:
+      - node3-network
+
+  grafana-node3:
+    image: grafana/grafana:10.4.2
+    profiles: ["node3"]
+    container_name: hospital-node3-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3002:3000"
+    depends_on:
+      - prometheus-node3
     networks:
       - node3-network
 

@@ -11,6 +11,7 @@ import com.parcial_final.ms_admission.repository.AdmissionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -32,6 +34,7 @@ public class AdmissionService {
     private final AdmissionRepository admissionRepository;
     private final AdmissionMapper admissionMapper;
     private final AdmissionEventPublisher eventPublisher;
+    private final CircuitBreakerFactory<?, ?> circuitBreakerFactory;
 
     @Value("${node.id:node1}")
     private String nodeId;
@@ -61,10 +64,13 @@ public class AdmissionService {
     }
 
     public List<AdmissionResponseDTO> getAllAdmissions() {
-        return admissionRepository.findAll()
-                .stream()
-                .map(admissionMapper::toResponseDTO)
-                .toList();
+        return circuitBreakerFactory.create("admission-db").run(
+                () -> admissionRepository.findAll().stream().map(admissionMapper::toResponseDTO).toList(),
+                ex -> {
+                    log.warn("DB circuit open — returning empty list: {}", ex.getMessage());
+                    return Collections.emptyList();
+                }
+        );
     }
 
     public String getNodeId() {

@@ -71,4 +71,9 @@ public class SyncController {
                 "status", "UP"
         ));
     }
+
+    @GetMapping("/status/peers")
+    public ResponseEntity<Map<String, String>> peerStatus() {
+        return ResponseEntity.ok(syncForwarder.getPeerStatuses());
+    }
 }

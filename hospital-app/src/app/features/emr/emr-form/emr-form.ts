@@ -2,10 +2,12 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AdmissionService } from '../../../core/services/admission.service';
+import { DoctorService } from '../../../core/services/doctor.service';
 import { EmrService } from '../../../core/services/emr.service';
 import { FhirEmrService } from '../../../core/services/fhir-emr.service';
 import { FhirService } from '../../../core/services/fhir.service';
 import { AdmissionResponse } from '../../../core/models/admission.model';
+import { DoctorResponse } from '../../../core/models/doctor.model';
 import {
   EmrResponse,
   FREQUENCY_OPTIONS,
@@ -22,6 +24,7 @@ import {
 export class EmrFormComponent {
   private readonly fb = inject(FormBuilder);
   private readonly admissionService = inject(AdmissionService);
+  private readonly doctorService = inject(DoctorService);
   private readonly emrService = inject(EmrService);
   private readonly fhirBuilder = inject(FhirEmrService);
   private readonly fhirService = inject(FhirService);
@@ -30,6 +33,7 @@ export class EmrFormComponent {
   readonly FREQUENCIES = FREQUENCY_OPTIONS;
 
   readonly admissions = signal<AdmissionResponse[]>([]);
+  readonly doctors = signal<DoctorResponse[]>([]);
   readonly submitting = signal(false);
   readonly error = signal<string | null>(null);
   readonly success = signal<EmrResponse | null>(null);
@@ -38,6 +42,7 @@ export class EmrFormComponent {
 
   readonly form = this.fb.group({
     admissionId: ['', Validators.required],
+    doctorId: ['', Validators.required],
     anamnesis: ['', Validators.required],
     clinicianNotes: [''],
     diagnoses: this.fb.array([this.newDiagnosis()]),
@@ -106,9 +111,8 @@ export class EmrFormComponent {
   });
 
   constructor() {
-    this.admissionService.getAll().subscribe({
-      next: (data) => this.admissions.set(data),
-    });
+    this.admissionService.getAll().subscribe({ next: (data) => this.admissions.set(data) });
+    this.doctorService.getAll().subscribe({ next: (data) => this.doctors.set(data) });
   }
 
   private newDiagnosis(): FormGroup {
@@ -185,6 +189,7 @@ export class EmrFormComponent {
         diagnoses: filteredDiagnoses as any,
         medications: filteredMedications as any,
         clinicianNotes: v.clinicianNotes ?? '',
+        doctorId: v.doctorId ?? undefined,
       })
       .subscribe({
         next: (res) => {

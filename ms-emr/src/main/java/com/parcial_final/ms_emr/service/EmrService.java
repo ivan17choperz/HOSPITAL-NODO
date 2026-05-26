@@ -11,6 +11,7 @@ import com.parcial_final.ms_emr.repository.EmrRecordRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hl7.fhir.r5.model.Bundle;
+import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
 import org.hl7.fhir.r5.model.CodeableConcept;
 import org.hl7.fhir.r5.model.CodeableReference;
 import org.hl7.fhir.r5.model.Condition;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,6 +37,7 @@ public class EmrService {
     private final EmrRecordRepository emrRecordRepository;
     private final FhirContext fhirContext;
     private final ObjectMapper objectMapper;
+    private final CircuitBreakerFactory<?, ?> circuitBreakerFactory;
 
     @Transactional
     public void ensureEpisode(UUID patientId, String episodeNumber, UUID admissionId) {
@@ -50,6 +53,7 @@ public class EmrService {
     public EmrResponse createRecord(EmrRequestDTO request) {
         String rawAdmission = request.getAdmissionId() == null ? "" : request.getAdmissionId().trim();
         String rawPatient   = request.getPatientId()   == null ? "" : request.getPatientId().trim();
+        String rawDoctor    = request.getDoctorId()    == null ? "" : request.getDoctorId().trim();
         if (rawAdmission.isBlank()) throw new ResponseStatusException(BAD_REQUEST, "admissionId is required");
         if (rawPatient.isBlank())   throw new ResponseStatusException(BAD_REQUEST, "patientId is required");
 
@@ -72,6 +76,7 @@ public class EmrService {
 
         record.setPatientId(UUID.fromString(rawPatient));
         record.setAdmissionId(admissionUuid);
+        if (!rawDoctor.isBlank()) record.setDoctorId(UUID.fromString(rawDoctor));
         record.setAnamnesis(request.getAnamnesis());
         record.setClinicianNotes(request.getClinicianNotes());
         record.setDiagnosesJson(diagnosesJson);
@@ -82,10 +87,15 @@ public class EmrService {
         return toResponse(saved);
     }
 
-    @Transactional(readOnly = true)
     public List<EmrResponse> getByAdmissionId(String admissionId) {
-        return emrRecordRepository.findByAdmissionId(UUID.fromString(admissionId.trim()))
-                .stream().map(this::toResponse).toList();
+        return circuitBreakerFactory.create("emr-db").run(
+                () -> emrRecordRepository.findByAdmissionId(UUID.fromString(admissionId.trim()))
+                        .stream().map(this::toResponse).toList(),
+                ex -> {
+                    log.warn("DB circuit open for EMR — returning empty list: {}", ex.getMessage());
+                    return Collections.emptyList();
+                }
+        );
     }
 
     @Transactional
@@ -140,6 +150,7 @@ public class EmrService {
                 .diagnoses(fromJson(r.getDiagnosesJson()))
                 .medications(fromJson(r.getMedicationsJson()))
                 .clinicianNotes(r.getClinicianNotes())
+                .doctorId(r.getDoctorId())
                 .createdAt(r.getCreatedAt())
                 .build();
     }

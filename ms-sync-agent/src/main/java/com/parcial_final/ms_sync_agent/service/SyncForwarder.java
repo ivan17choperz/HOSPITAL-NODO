@@ -7,7 +7,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -49,5 +51,19 @@ public class SyncForwarder {
 
     public long getForwardedCount() {
         return forwardedCount.get();
+    }
+
+    public Map<String, String> getPeerStatuses() {
+        Map<String, String> statuses = new LinkedHashMap<>();
+        for (String peer : peerNodes) {
+            try {
+                restTemplate.getForEntity(peer + "/actuator/health", String.class);
+                statuses.put(peer, "UP");
+            } catch (Exception e) {
+                log.warn("[SYNC] Peer {} health check failed: {}", peer, e.getMessage());
+                statuses.put(peer, "DOWN");
+            }
+        }
+        return statuses;
     }
 }

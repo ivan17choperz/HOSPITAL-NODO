@@ -17,4 +17,5 @@ public class EmrRequestDTO {
     private List<Map<String, Object>> diagnoses;
     private List<Map<String, Object>> medications;
     private String clinicianNotes;
+    private String doctorId;
 }

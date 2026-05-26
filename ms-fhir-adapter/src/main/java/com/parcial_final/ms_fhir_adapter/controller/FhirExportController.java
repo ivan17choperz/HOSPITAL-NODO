@@ -56,6 +56,14 @@ public class FhirExportController {
         return fhirExportService.getResourcesByType(type);
     }
 
+    @PostMapping(value = "/resources/{type}", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> createResource(
+            @org.springframework.web.bind.annotation.PathVariable("type") String type,
+            @RequestBody Map<String, Object> body) {
+        String created = fhirExportService.registerFhirResource(type, body);
+        return ResponseEntity.status(201).body(created);
+    }
+
     @GetMapping(value = "/observations", produces = MediaType.APPLICATION_JSON_VALUE)
     public String getAllObservations() {
         return fhirExportService.getResourcesByType("Observation");
@@ -83,6 +91,27 @@ public class FhirExportController {
         return fhirExportService.getResourceById("Observation", id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping(value = "/resources/{type}/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> getResource(
+            @PathVariable("type") String type,
+            @PathVariable("id") String id) {
+        return fhirExportService.getResourceById(type, id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping(
+            value = "/resources/{type}/{id}",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> updateResource(
+            @PathVariable("type") String type,
+            @PathVariable("id") String id,
+            @RequestBody Map<String, Object> body) {
+        String updated = fhirExportService.updateFhirResource(type, id, body);
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping(value = "/resources/{type}/{id}")

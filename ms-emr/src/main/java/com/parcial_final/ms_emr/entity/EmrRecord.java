@@ -52,6 +52,9 @@ public class EmrRecord {
     @Column(name = "medications_json", columnDefinition = "TEXT")
     private String medicationsJson;
 
+    @Column(name = "doctor_id")
+    private UUID doctorId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

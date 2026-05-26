@@ -1,0 +1,1 @@
+ALTER TABLE emr_records ADD COLUMN IF NOT EXISTS doctor_id UUID;

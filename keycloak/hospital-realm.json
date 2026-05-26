@@ -1,0 +1,53 @@
+{
+  "realm": "hospital",
+  "enabled": true,
+  "displayName": "Hospital System",
+  "accessTokenLifespan": 3600,
+  "ssoSessionMaxLifespan": 36000,
+  "clients": [
+    {
+      "clientId": "fhir-client",
+      "enabled": true,
+      "name": "FHIR Client",
+      "description": "Client for FHIR R5 API access",
+      "publicClient": false,
+      "secret": "fhir-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "fhir-user", "description": "Can read/write FHIR resources" },
+      { "name": "fhir-admin", "description": "Full FHIR admin access" }
+    ]
+  },
+  "users": [
+    {
+      "username": "doctor1",
+      "enabled": true,
+      "email": "doctor1@hospital.com",
+      "firstName": "Doctor",
+      "lastName": "One",
+      "credentials": [
+        { "type": "password", "value": "doctor123", "temporary": false }
+      ],
+      "realmRoles": ["fhir-user"]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@hospital.com",
+      "firstName": "Admin",
+      "lastName": "Hospital",
+      "credentials": [
+        { "type": "password", "value": "admin123", "temporary": false }
+      ],
+      "realmRoles": ["fhir-user", "fhir-admin"]
+    }
+  ]
+}

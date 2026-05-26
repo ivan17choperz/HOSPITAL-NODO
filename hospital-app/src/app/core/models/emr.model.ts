@@ -25,6 +25,7 @@ export interface EmrRequest {
   diagnoses: DiagnosisEntry[];
   medications: MedicationEntry[];
   clinicianNotes: string;
+  doctorId?: string;
 }
 
 export interface EmrResponse {
@@ -35,6 +36,7 @@ export interface EmrResponse {
   diagnoses: DiagnosisEntry[];
   medications: MedicationEntry[];
   clinicianNotes: string;
+  doctorId?: string;
   createdAt: string;
 }
 

@@ -84,6 +84,31 @@
           </div>
         </fieldset>
 
+        <!-- Doctor -->
+        <fieldset>
+          <legend>Médico Tratante</legend>
+          <div class="form-group" [class.invalid]="isInvalid('doctorId')">
+            <label for="doctorId">Doctor <span class="req">*</span></label>
+            @if (doctors().length > 0) {
+              <select id="doctorId" formControlName="doctorId">
+                <option value="">— Seleccionar doctor —</option>
+                @for (d of doctors(); track d.id) {
+                  <option [value]="d.id">
+                    Dr. {{ d.firstName }} {{ d.lastName }} — {{ d.specialty }}
+                    @if (d.licenseNumber) { (Lic. {{ d.licenseNumber }}) }
+                  </option>
+                }
+              </select>
+            } @else {
+              <p class="hint">No hay doctores registrados. <a routerLink="/doctors/new">Registrar doctor</a></p>
+              <input id="doctorId" type="text" formControlName="doctorId" placeholder="UUID del doctor" />
+            }
+            @if (isInvalid('doctorId')) {
+              <span class="error-msg">Seleccione un doctor</span>
+            }
+          </div>
+        </fieldset>
+
         <!-- Anamnesis -->
         <fieldset>
           <legend>Anamnesis</legend>

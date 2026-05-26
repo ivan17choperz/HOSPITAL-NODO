@@ -165,6 +165,21 @@ public class FhirExportService {
     }
 
     @Transactional
+    public String updateFhirResource(String resourceType, String resourceId, Map<String, Object> body) {
+        try {
+            String fhirJson = objectMapper.writeValueAsString(body);
+            var parser = fhirContext.newJsonParser().setPrettyPrint(true);
+            var resource = (org.hl7.fhir.r5.model.Resource) parser.parseResource(fhirJson);
+            resource.setId(resourceId);
+            String encoded = parser.encodeResourceToString(resource);
+            upsertResource(resourceType, resourceId, encoded);
+            return encoded;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize FHIR resource body", e);
+        }
+    }
+
+    @Transactional
     public void deleteResource(String resourceType, String resourceId) {
         fhirResourceRepository.findByResourceTypeAndResourceId(resourceType, resourceId)
                 .ifPresent(fhirResourceRepository::delete);

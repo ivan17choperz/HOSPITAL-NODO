@@ -192,6 +192,23 @@
       </div>
     }
 
+    <!-- PEER CONNECTIVITY (live from sync-agent) -->
+    @if (peerEntries().length > 0) {
+      <div class="chart-card peer-card">
+        <div class="chart-title">Conectividad entre Nodos — Tiempo Real</div>
+        <div class="peer-list">
+          @for (entry of peerEntries(); track entry[0]) {
+            <div class="peer-row">
+              <span class="peer-url">{{ entry[0] }}</span>
+              <span class="peer-badge" [class.peer-up]="entry[1] === 'UP'" [class.peer-down]="entry[1] !== 'UP'">
+                {{ entry[1] === 'UP' ? '● EN LÍNEA' : '● DESCONECTADO' }}
+              </span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
     <!-- NODE STATUS TABLE -->
     <div class="chart-card node-table-card">
       <div class="chart-title">Estado de Nodos — Resumen</div>
