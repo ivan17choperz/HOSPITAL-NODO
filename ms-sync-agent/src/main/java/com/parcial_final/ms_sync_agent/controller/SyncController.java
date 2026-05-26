@@ -22,7 +22,7 @@ import java.time.Duration;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/sync")
+@RequestMapping("")
 @RequiredArgsConstructor
 @Slf4j
 public class SyncController {
