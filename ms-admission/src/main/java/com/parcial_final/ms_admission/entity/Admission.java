@@ -44,6 +44,12 @@ public class Admission {
 
     private String ward;
 
+    @Column(name = "episode_number", nullable = false, unique = true)
+    private String episodeNumber;
+
+    @Column(name = "node_id", nullable = false)
+    private String nodeId;
+
     @Column(name = "admitted_at", nullable = false)
     private LocalDateTime admittedAt;
 

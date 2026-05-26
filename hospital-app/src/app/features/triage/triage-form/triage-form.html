@@ -1,0 +1,202 @@
+@if (success(); as result) {
+  <div class="page">
+    <div class="success-card" [class]="'border-' + result.category.toLowerCase()">
+      <div class="success-header" [class]="'bg-' + result.category.toLowerCase()">
+        <span class="success-icon">&#10003;</span>
+        <div>
+          <h2>Triage registrado</h2>
+          <p>{{ CATEGORIES[result.category].label }}</p>
+        </div>
+      </div>
+
+      <dl class="summary">
+        <div class="summary-row highlight">
+          <dt>N.° de Episodio</dt>
+          <dd class="episode">EP-{{ result.admissionId.replace('-', '').substring(0, 8).toUpperCase() }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>Clasificación Manchester</dt>
+          <dd><span class="badge-cat" [class]="'bg-' + result.category.toLowerCase()">{{ CATEGORIES[result.category].label }}</span></dd>
+        </div>
+        <div class="summary-row">
+          <dt>Tiempo máx. de espera</dt>
+          <dd>{{ CATEGORIES[result.category].maxWaitMinutes === 0 ? 'Inmediato' : CATEGORIES[result.category].maxWaitMinutes + ' min' }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>ID Triage</dt>
+          <dd class="mono">{{ result.id }}</dd>
+        </div>
+      </dl>
+
+      <div class="success-actions">
+        <button class="btn-secondary" (click)="reset()">Nuevo triage</button>
+        <a class="btn-primary" routerLink="/triage">Ver todos</a>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h2>Triage — Signos Vitales</h2>
+        <p class="subtitle">Registro de signos vitales y clasificación Manchester</p>
+      </div>
+      <a class="btn-back" routerLink="/triage">Volver</a>
+    </div>
+
+    @if (error()) {
+      <div class="alert-error">{{ error() }}</div>
+    }
+
+    <div class="triage-layout">
+      <!-- LEFT: form -->
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="triage-form">
+
+        <fieldset>
+          <legend>Vinculación al Episodio</legend>
+          <div class="form-group" [class.invalid]="isInvalid('admissionId')">
+            <label for="admissionId">Admisión / Episodio <span class="required">*</span></label>
+            @if (admissions().length > 0) {
+              <select id="admissionId" formControlName="admissionId">
+                <option value="">— Seleccionar admisión —</option>
+                @for (a of admissions(); track a.id) {
+                  <option [value]="a.id">
+                    EP-{{ a.id.replace('-', '').substring(0, 8).toUpperCase() }} — {{ a.firstName }} {{ a.lastName }} ({{ a.ward }})
+                  </option>
+                }
+              </select>
+            } @else {
+              <input id="admissionId" type="text" formControlName="admissionId" placeholder="UUID de admisión" />
+            }
+            @if (form.value.admissionId) {
+              <span class="episode-tag">Episodio: <strong>{{ episodeNumber() }}</strong></span>
+            }
+            @if (isInvalid('admissionId')) {
+              <span class="error-msg">Seleccione una admisión</span>
+            }
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Signos Vitales</legend>
+
+          <div class="vitals-grid">
+            <div class="vital-group">
+              <label for="temperature">Temperatura (°C)</label>
+              <input id="temperature" type="number" step="0.1" min="30" max="45"
+                     formControlName="temperature" placeholder="36.6" />
+              <span class="unit">°C</span>
+            </div>
+
+            <div class="vital-group">
+              <label for="heartRate">Frec. cardíaca (lpm)</label>
+              <input id="heartRate" type="number" min="0" max="300"
+                     formControlName="heartRate" placeholder="72" />
+              <span class="unit">lpm</span>
+            </div>
+
+            <div class="vital-group">
+              <label for="systolicBp">TA sistólica (mmHg)</label>
+              <input id="systolicBp" type="number" min="0" max="300"
+                     formControlName="systolicBp" placeholder="120" />
+              <span class="unit">mmHg</span>
+            </div>
+
+            <div class="vital-group">
+              <label for="diastolicBp">TA diastólica (mmHg)</label>
+              <input id="diastolicBp" type="number" min="0" max="200"
+                     formControlName="diastolicBp" placeholder="80" />
+              <span class="unit">mmHg</span>
+            </div>
+
+            <div class="vital-group">
+              <label for="oxygenSaturation">SpO₂ (%)</label>
+              <input id="oxygenSaturation" type="number" step="0.1" min="0" max="100"
+                     formControlName="oxygenSaturation" placeholder="98" />
+              <span class="unit">%</span>
+            </div>
+
+            <div class="vital-group">
+              <label for="respiratoryRate">Frec. respiratoria</label>
+              <input id="respiratoryRate" type="number" min="0" max="60"
+                     formControlName="respiratoryRate" placeholder="16" />
+              <span class="unit">resp/min</span>
+            </div>
+          </div>
+
+          <div class="form-group pain-row">
+            <label for="painScore">Dolor (escala 0–10): <strong>{{ form.value.painScore ?? '—' }}</strong></label>
+            <input id="painScore" type="range" min="0" max="10" step="1"
+                   formControlName="painScore" class="range-input" />
+            <div class="pain-labels">
+              <span>Sin dolor (0)</span>
+              <span>Dolor máximo (10)</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="notes">Observaciones clínicas</label>
+            <textarea id="notes" formControlName="notes" rows="2"
+                      placeholder="Descripción breve del motivo de consulta..."></textarea>
+          </div>
+        </fieldset>
+
+        <div class="form-footer">
+          <button type="button" class="btn-fhir" (click)="toggleFhir()">
+            {{ showFhir() ? 'Ocultar' : 'Ver' }} Observation FHIR
+          </button>
+          <button type="submit" class="btn-primary" [disabled]="submitting()">
+            {{ submitting() ? 'Registrando...' : 'Registrar triage' }}
+          </button>
+        </div>
+      </form>
+
+      <!-- RIGHT: live classification + FHIR preview -->
+      <aside class="triage-aside">
+        <!-- Manchester classification panel -->
+        @if (hasAnyVital()) {
+          <div class="classification-card" [class]="categoryInfo().colorClass">
+            <div class="cat-header">
+              <span class="cat-dot"></span>
+              <div>
+                <p class="cat-title">Clasificación Manchester</p>
+                <h3 class="cat-label">{{ categoryInfo().label }}</h3>
+              </div>
+            </div>
+            <p class="cat-desc">{{ categoryInfo().description }}</p>
+            <p class="cat-wait">
+              @if (categoryInfo().maxWaitMinutes === 0) {
+                Atención inmediata requerida
+              } @else {
+                Tiempo máx.: {{ categoryInfo().maxWaitMinutes }} min
+              }
+            </p>
+            <div class="cat-legend">
+              @for (cat of CATEGORY_KEYS; track cat) {
+                <div class="legend-row" [class.current]="cat === category()">
+                  <span class="legend-dot" [class]="'dot-' + cat.toLowerCase()"></span>
+                  <span>{{ CATEGORIES[cat].label.split('—')[0].trim() }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        } @else {
+          <div class="classification-empty">
+            <p>Ingrese al menos un signo vital para ver la clasificación en tiempo real.</p>
+          </div>
+        }
+
+        <!-- FHIR Observation preview -->
+        @if (showFhir()) {
+          <div class="fhir-preview">
+            <div class="fhir-header">
+              <span class="fhir-badge">FHIR R5</span>
+              <span>Observation (signos vitales)</span>
+            </div>
+            <pre class="fhir-json">{{ fhirPreview() }}</pre>
+          </div>
+        }
+      </aside>
+    </div>
+  </div>
+}

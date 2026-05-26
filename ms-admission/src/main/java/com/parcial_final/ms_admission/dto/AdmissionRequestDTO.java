@@ -33,4 +33,8 @@ public class AdmissionRequestDTO {
 
     @NotBlank
     private String ward;
+
+    private String episodeNumber;
+
+    private String targetNodeId;
 }

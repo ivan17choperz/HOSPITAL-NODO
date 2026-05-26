@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admissions")
@@ -26,5 +27,10 @@ public class AdmissionController {
     @GetMapping
     public List<AdmissionResponseDTO> getAllAdmissions() {
         return admissionService.getAllAdmissions();
+    }
+
+    @GetMapping("/node")
+    public Map<String, String> getCurrentNode() {
+        return Map.of("nodeId", admissionService.getNodeId());
     }
 }

@@ -14,6 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PatientAdmittedEvent {
+    private UUID admissionId;
     private UUID patientId;
     private String firstName;
     private String lastName;
@@ -21,5 +22,7 @@ public class PatientAdmittedEvent {
     private LocalDate birthDate;
     private String identifier;
     private String ward;
+    private String episodeNumber;
+    private String nodeId;
     private LocalDateTime admittedAt;
 }

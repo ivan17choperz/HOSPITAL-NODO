@@ -7,9 +7,9 @@
 ##    RabbitMQ Node1: http://localhost:15672  (guest/guest)
 ##    RabbitMQ Node2: http://localhost:15673  (guest/guest)
 ##    RabbitMQ Node3: http://localhost:15674  (guest/guest)
-##    API Gateway Node1: http://localhost:80
-##    API Gateway Node2: http://localhost:8080
-##    API Gateway Node3: http://localhost:9080
+##    API Gateway Node1: http://localhost:8080
+##    API Gateway Node2: http://localhost:8090
+##    API Gateway Node3: http://localhost:8100
 ##    Sync Status Node1: http://localhost:8086/sync/status
 ##    Sync Status Node2: http://localhost:8186/sync/status
 ##    Sync Status Node3: http://localhost:8286/sync/status
@@ -229,12 +229,33 @@ services:
       - node1-network
       - inter-node-network
 
+  ms-triage-node1:
+    build: ./ms-triage
+    profiles: ["node1"]
+    container_name: hospital-node1-triage
+    ports:
+      - "8087:8087"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node1:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_RABBITMQ_HOST=rabbitmq-node1
+      - SERVER_PORT=8087
+      - NODE_ID=node1
+    depends_on:
+      postgres-node1:
+        condition: service_healthy
+      rabbitmq-node1:
+        condition: service_healthy
+    networks:
+      - node1-network
+
   nginx-node1:
     image: nginx:alpine
     profiles: ["node1"]
     container_name: hospital-node1-gateway
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - ./nginx/node1.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -244,6 +265,7 @@ services:
       - ms-laboratory-node1
       - ms-fhir-adapter-node1
       - ms-sync-agent-node1
+      - ms-triage-node1
     networks:
       - node1-network
 
@@ -458,12 +480,33 @@ services:
       - node2-network
       - inter-node-network
 
+  ms-triage-node2:
+    build: ./ms-triage
+    profiles: ["node2"]
+    container_name: hospital-node2-triage
+    ports:
+      - "8187:8087"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node2:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_RABBITMQ_HOST=rabbitmq-node2
+      - SERVER_PORT=8087
+      - NODE_ID=node2
+    depends_on:
+      postgres-node2:
+        condition: service_healthy
+      rabbitmq-node2:
+        condition: service_healthy
+    networks:
+      - node2-network
+
   nginx-node2:
     image: nginx:alpine
     profiles: ["node2"]
     container_name: hospital-node2-gateway
     ports:
-      - "8080:80"
+      - "8090:80"
     volumes:
       - ./nginx/node2.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -473,6 +516,7 @@ services:
       - ms-laboratory-node2
       - ms-fhir-adapter-node2
       - ms-sync-agent-node2
+      - ms-triage-node2
     networks:
       - node2-network
 
@@ -687,12 +731,33 @@ services:
       - node3-network
       - inter-node-network
 
+  ms-triage-node3:
+    build: ./ms-triage
+    profiles: ["node3"]
+    container_name: hospital-node3-triage
+    ports:
+      - "8287:8087"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node3:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_RABBITMQ_HOST=rabbitmq-node3
+      - SERVER_PORT=8087
+      - NODE_ID=node3
+    depends_on:
+      postgres-node3:
+        condition: service_healthy
+      rabbitmq-node3:
+        condition: service_healthy
+    networks:
+      - node3-network
+
   nginx-node3:
     image: nginx:alpine
     profiles: ["node3"]
     container_name: hospital-node3-gateway
     ports:
-      - "9080:80"
+      - "8100:80"
     volumes:
       - ./nginx/node3.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -702,6 +767,7 @@ services:
       - ms-laboratory-node3
       - ms-fhir-adapter-node3
       - ms-sync-agent-node3
+      - ms-triage-node3
     networks:
       - node3-network
 

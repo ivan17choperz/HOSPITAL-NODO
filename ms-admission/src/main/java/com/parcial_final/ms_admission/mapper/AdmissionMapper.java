@@ -15,6 +15,7 @@ public interface AdmissionMapper {
     @Mapping(target = "status", expression = "java(admission.getStatus().name())")
     AdmissionResponseDTO toResponseDTO(Admission admission);
 
+    @Mapping(target = "admissionId", source = "id")
     @Mapping(target = "admittedAt", source = "admittedAt")
     PatientAdmittedEvent toEvent(Admission admission);
 }

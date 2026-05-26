@@ -1,0 +1,266 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Historia Clínica — Vista Consolidada</h2>
+      <p class="subtitle">Cruce de datos entre los 3 nodos del sistema hospitalario distribuido</p>
+    </div>
+    <button class="btn-query" (click)="queryAllNodes()" [disabled]="querying()">
+      {{ querying() ? 'Consultando nodos...' : 'Consultar los 3 nodos' }}
+    </button>
+  </div>
+
+  <!-- NODE STATUS BAR -->
+  @if (nodeResults().length > 0) {
+    <div class="node-bar">
+      @for (r of nodeResults(); track r.node.id) {
+        <div class="node-card" [class.node-error]="!!r.error" [class.node-loading]="r.loading">
+          <div class="node-dot" [style.background]="r.error ? '#f87171' : '#4ade80'"></div>
+          <div class="node-info">
+            <span class="node-name">{{ r.node.name }}</span>
+            <span class="node-url">{{ r.node.gatewayUrl }}</span>
+          </div>
+          <div class="node-stats">
+            @if (r.error) {
+              <span class="stat-err">{{ r.error }}</span>
+            } @else if (r.loading) {
+              <span class="stat-loading">...</span>
+            } @else {
+              <span class="stat-ok">{{ r.data.length }} admisiones</span>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Cross-node patient dedup -->
+      @if (deduplicateByPatient().length > 0) {
+        <div class="node-card cross-summary">
+          <div class="node-dot" style="background: #f59e0b"></div>
+          <div class="node-info">
+            <span class="node-name">Pacientes en múltiples nodos</span>
+            <span class="node-url">Cruce inter-nodo</span>
+          </div>
+          <div class="node-stats">
+            @for (item of deduplicateByPatient(); track item.patientId) {
+              @if (item.nodes.length > 1) {
+                <span class="stat-cross"
+                  >{{ item.patientId.substring(0, 8) }}... → {{ item.nodes.join(', ') }}</span
+                >
+              }
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div class="hc-layout">
+      <!-- LEFT: admission list from all nodes -->
+      <div class="admission-panel">
+        <h3 class="panel-title">
+          Episodios <span class="count-badge">{{ allAdmissions().length }}</span>
+        </h3>
+        @if (allAdmissions().length === 0) {
+          <p class="empty-msg">No hay admisiones en ningún nodo.</p>
+        } @else {
+          <div class="admission-list">
+            @for (a of allAdmissions(); track a.id) {
+              <div
+                class="admission-item"
+                [class.selected]="selectedAdmission()?.id === a.id"
+                (click)="selectAdmission(a)"
+              >
+                <div class="adm-top">
+                  <span class="adm-episode">{{ episodeNumber(a.id) }}</span>
+                  <span
+                    class="adm-node"
+                    [style.color]="a.nodeColor"
+                    [style.border-color]="a.nodeColor"
+                    >{{ a.nodeName }}</span
+                  >
+                </div>
+                <div class="adm-patient">{{ a.firstName }} {{ a.lastName }}</div>
+                <div class="adm-meta">{{ a.ward }} · {{ a.admittedAt | date: 'dd/MM/yy' }}</div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- RIGHT: Episode detail + FHIR resources -->
+      <div class="detail-panel">
+        @if (!selectedAdmission()) {
+          <div class="empty-detail">
+            <p>
+              Seleccione un episodio para ver la Historia Clínica consolidada y los recursos FHIR.
+            </p>
+          </div>
+        } @else {
+          <div class="episode-detail">
+            <!-- Episode header -->
+            <div class="ep-header">
+              <div class="ep-id">
+                <span class="ep-badge" [style.background]="selectedAdmission()!.nodeColor">
+                  {{ selectedAdmission()!.nodeName }}
+                </span>
+                <h3>{{ episodeNumber(selectedAdmission()!.id) }}</h3>
+              </div>
+              <div class="ep-patient">
+                <div class="ep-name">
+                  {{ selectedAdmission()!.firstName }} {{ selectedAdmission()!.lastName }}
+                </div>
+                <div class="ep-meta">
+                  {{ selectedAdmission()!.ward }} · Admitido:
+                  {{ selectedAdmission()!.admittedAt | date: 'dd/MM/yyyy HH:mm' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- FHIR resource status panel -->
+            <div class="fhir-resource-map">
+              <h4>Recursos FHIR R5 del Episodio</h4>
+              <div class="fhir-map-grid">
+                <button
+                  class="fhir-resource-btn"
+                  [class.active]="fhirTab() === 'patient'"
+                  [class.status-ok]="fhirTabStatus().patient === 'ok'"
+                  [class.status-warn]="fhirTabStatus().patient === 'warn'"
+                  (click)="setFhirTab('patient')"
+                >
+                  <span class="res-icon">
+                    {{ fhirTabStatus().patient === 'ok' ? '✓' : '⚠' }}
+                  </span>
+                  <span class="res-type">Patient</span>
+                  <span class="res-src">{{
+                    fhirTabStatus().patient === 'ok' ? 'FHIR adapter' : 'No encontrado'
+                  }}</span>
+                </button>
+
+                <button
+                  class="fhir-resource-btn status-derived"
+                  [class.active]="fhirTab() === 'encounter'"
+                  (click)="setFhirTab('encounter')"
+                >
+                  <span class="res-icon">⟳</span>
+                  <span class="res-type">Encounter</span>
+                  <span class="res-src">Derivado de admisión</span>
+                </button>
+
+                <button
+                  class="fhir-resource-btn status-pending"
+                  [class.active]="fhirTab() === 'observation'"
+                  (click)="setFhirTab('observation')"
+                >
+                  <span class="res-icon">○</span>
+                  <span class="res-type"
+                    >Observation
+                    <small *ngIf="observationBundle()"
+                      >({{ observationBundle().total }})</small
+                    ></span
+                  >
+                  <span class="res-src">Pendiente triage</span>
+                </button>
+
+                <button
+                  class="fhir-resource-btn status-pending"
+                  [class.active]="fhirTab() === 'condition'"
+                  (click)="setFhirTab('condition')"
+                >
+                  <span class="res-icon">○</span>
+                  <span class="res-type"
+                    >Condition
+                    <small *ngIf="clinicalBundle()"
+                      >({{ clinicalBundle().entry?.filter(e => e.resource.resourceType==='Condition').length || 0
+                      }})</small
+                    ></span
+                  >
+                  <span class="res-src">Pendiente HC</span>
+                </button>
+
+                <button
+                  class="fhir-resource-btn status-pending"
+                  [class.active]="fhirTab() === 'medication'"
+                  (click)="setFhirTab('medication')"
+                >
+                  <span class="res-icon">○</span>
+                  <span class="res-type"
+                    >MedicationRequest
+                    <small *ngIf="clinicalBundle()"
+                      >({{ clinicalBundle().entry?.filter(e => e.resource.resourceType==='MedicationRequest').length || 0
+                      }})</small
+                    ></span
+                  >
+                  <span class="res-src">Pendiente HC</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- FHIR JSON preview -->
+            <div class="fhir-preview-block">
+              <div class="fhir-preview-header">
+                <span class="fhir-badge">FHIR R5</span>
+                <span>{{ fhirTab() }}</span>
+                <span class="fhir-ref"
+                  >Patient/{{ selectedAdmission()!.patientId.substring(0, 8) }}... · Encounter/{{
+                    selectedAdmission()!.id.substring(0, 8)
+                  }}...</span
+                >
+              </div>
+              <pre class="fhir-json">{{ fhirPreview() }}</pre>
+            </div>
+
+            <!-- Patient FHIR summary card -->
+            @if (selectedFhirPatient(); as patient) {
+              <div class="patient-fhir-card">
+                <h4>Patient FHIR <span class="fhir-badge-sm">Almacenado en FHIR Adapter</span></h4>
+                <dl class="patient-dl">
+                  <div>
+                    <dt>ID FHIR</dt>
+                    <dd class="mono-sm">{{ patient.id }}</dd>
+                  </div>
+                  <div>
+                    <dt>Nombre</dt>
+                    <dd>{{ patientName(patient) }}</dd>
+                  </div>
+                  <div>
+                    <dt>Género</dt>
+                    <dd>{{ patient.gender ?? '—' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Fecha nacimiento</dt>
+                    <dd>{{ patient.birthDate ?? '—' }}</dd>
+                  </div>
+                  @if (patient.identifier?.length) {
+                    <div>
+                      <dt>Identificador</dt>
+                      <dd>{{ patient.identifier![0].value }}</dd>
+                    </div>
+                  }
+                </dl>
+              </div>
+            } @else {
+              <div class="patient-fhir-missing">
+                Patient FHIR no encontrado en el adapter para este episodio. Se creará
+                automáticamente al procesar el evento de admisión por RabbitMQ.
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="initial-state">
+      <div class="initial-icon">&#9735;</div>
+      <h3>Consulta multi-nodo</h3>
+      <p>
+        Haga clic en <strong>Consultar los 3 nodos</strong> para obtener de forma paralela los datos
+        de admisiones y recursos FHIR de todos los nodos del sistema distribuido.
+      </p>
+      <ul class="feature-list">
+        <li>Admisiones de Nodo 1, 2 y 3 en paralelo (forkJoin)</li>
+        <li>FHIR Patient desde cada adapter</li>
+        <li>Encounter derivado de la admisión seleccionada</li>
+        <li>Placeholders FHIR para Observation, Condition y MedicationRequest</li>
+      </ul>
+    </div>
+  }
+</div>

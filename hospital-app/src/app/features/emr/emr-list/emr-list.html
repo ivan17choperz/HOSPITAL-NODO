@@ -1,0 +1,102 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Historia Clínica</h2>
+      <p class="subtitle">Consulta de registros médicos por episodio</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="load()">Actualizar</button>
+      <a class="btn-primary" routerLink="/emr/new">Nueva consulta</a>
+    </div>
+  </div>
+
+  @if (loading()) { <div class="state-msg">Cargando registros...</div> }
+  @if (error()) { <div class="alert-error">{{ error() }}</div> }
+
+  @if (!loading() && !error()) {
+    @if (records().length === 0) {
+      <div class="state-msg">
+        No hay registros de Historia Clínica.
+        <a routerLink="/emr/new">Registrar el primero</a>
+      </div>
+    } @else {
+      <div class="records-list">
+        @for (r of records(); track r.id) {
+          <div class="record-card">
+            <div class="record-header" (click)="toggle(r.id)">
+              <div class="record-meta">
+                <span class="episode-tag">{{ episodeNumber(r.admissionId) }}</span>
+                <span class="record-date">{{ r.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <div class="record-summary">
+                <span class="badge-dx">{{ r.diagnoses.length }} Dx</span>
+                <span class="badge-rx">{{ r.medications.length }} Rx</span>
+                <span class="toggle-icon">{{ expanded() === r.id ? '▲' : '▼' }}</span>
+              </div>
+            </div>
+
+            @if (expanded() === r.id) {
+              <div class="record-body">
+                <section>
+                  <h4>Anamnesis</h4>
+                  <p class="anamnesis-text">{{ r.anamnesis }}</p>
+                </section>
+
+                @if (r.diagnoses.length > 0) {
+                  <section>
+                    <h4>Diagnósticos <span class="fhir-label">FHIR Condition</span></h4>
+                    <table class="inner-table">
+                      <thead>
+                        <tr><th>ICD-10</th><th>Diagnóstico</th><th>Estado</th><th>Verificación</th></tr>
+                      </thead>
+                      <tbody>
+                        @for (d of r.diagnoses; track d.icd10Code) {
+                          <tr>
+                            <td class="mono-sm">{{ d.icd10Code || '—' }}</td>
+                            <td>{{ d.description }}</td>
+                            <td><span class="status-pill">{{ d.clinicalStatus }}</span></td>
+                            <td><span class="verify-pill">{{ d.verificationStatus }}</span></td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </section>
+                }
+
+                @if (r.medications.length > 0) {
+                  <section>
+                    <h4>Prescripción <span class="fhir-label">FHIR MedicationRequest</span></h4>
+                    <table class="inner-table">
+                      <thead>
+                        <tr><th>Medicamento</th><th>Dosis</th><th>Vía</th><th>Frecuencia</th><th>Duración</th></tr>
+                      </thead>
+                      <tbody>
+                        @for (m of r.medications; track m.medicationName) {
+                          <tr>
+                            <td><strong>{{ m.medicationName }}</strong></td>
+                            <td>{{ m.dose }} {{ m.unit }}</td>
+                            <td>{{ m.route }}</td>
+                            <td>{{ m.frequency }}</td>
+                            <td>{{ m.durationDays ? m.durationDays + ' días' : '—' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </section>
+                }
+
+                @if (r.clinicianNotes) {
+                  <section>
+                    <h4>Notas del médico</h4>
+                    <p class="anamnesis-text">{{ r.clinicianNotes }}</p>
+                  </section>
+                }
+              </div>
+            }
+          </div>
+        }
+      </div>
+      <p class="count">{{ records().length }} registro(s)</p>
+    }
+  }
+</div>

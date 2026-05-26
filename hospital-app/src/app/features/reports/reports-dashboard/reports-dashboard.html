@@ -1,0 +1,237 @@
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <h2>Sistema de Reportes</h2>
+      <p class="subtitle">Métricas clínicas y operacionales — 3 nodos en tiempo real</p>
+    </div>
+    <div class="header-actions">
+      @if (snapshot()) {
+        <span class="last-update">
+          <span class="pulse-dot" [class.loading]="loading()"></span>
+          Actualiza en {{ countdown() }}s &nbsp;·&nbsp; {{ formatTime(snapshot()!.fetchedAt) }}
+        </span>
+      }
+      <button class="btn-refresh" (click)="load()" [disabled]="loading()">
+        {{ loading() ? 'Cargando...' : '↻ Actualizar' }}
+      </button>
+    </div>
+  </div>
+
+  @if (!snapshot() && loading()) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Consultando los 3 nodos del sistema distribuido...</p>
+    </div>
+  }
+
+  @if (snapshot(); as snap) {
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-icon adm-icon">A</div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ snap.totalAdmissions }}</div>
+          <div class="kpi-label">Admisiones totales</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon tri-icon">T</div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ snap.totalTriages }}</div>
+          <div class="kpi-label">Triages registrados</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon emr-icon">E</div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ snap.totalEmr }}</div>
+          <div class="kpi-label">Registros EMR</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon node-icon">N</div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ snap.nodesOnline }}<span class="kpi-denom">/3</span></div>
+          <div class="kpi-label">Nodos en línea</div>
+        </div>
+      </div>
+
+      <div class="kpi-card" [class.kpi-alert]="snap.criticalCount > 0">
+        <div class="kpi-icon crit-icon">!</div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ snap.criticalCount }}</div>
+          <div class="kpi-label">Casos críticos (R+O)</div>
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-icon pct-icon">%</div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ snap.emrCompletionPct }}<span class="kpi-denom">%</span></div>
+          <div class="kpi-label">Completado EMR</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="charts-row">
+
+      <!-- DONUT: Triage distribution -->
+      <div class="chart-card donut-card">
+        <div class="chart-title">Distribución Triage Manchester</div>
+        <div class="donut-layout">
+          <div class="donut-wrap">
+            <svg viewBox="0 0 160 160" class="donut-svg">
+              <g transform="rotate(-90 80 80)">
+                @if (snap.totalTriages === 0) {
+                  <circle cx="80" cy="80" r="54" fill="none" stroke="#e2e8f0" stroke-width="24" />
+                } @else {
+                  @for (seg of donutSegments(); track seg.label) {
+                    <circle
+                      cx="80" cy="80" r="54"
+                      fill="none"
+                      [attr.stroke]="seg.color"
+                      stroke-width="24"
+                      [attr.stroke-dasharray]="seg.dashArray"
+                      [attr.stroke-dashoffset]="seg.dashOffset"
+                    />
+                  }
+                }
+              </g>
+              <text x="80" y="74" text-anchor="middle" class="donut-total">{{ snap.totalTriages }}</text>
+              <text x="80" y="92" text-anchor="middle" class="donut-sub">triages</text>
+            </svg>
+          </div>
+
+          <div class="donut-legend">
+            @for (stat of snap.triageStats; track stat.category) {
+              <div class="legend-row">
+                <span class="legend-dot" [style.background]="stat.color"></span>
+                <span class="legend-label">{{ stat.label }}</span>
+                <span class="legend-count">{{ stat.count }}</span>
+                @if (snap.totalTriages > 0) {
+                  <span class="legend-pct">{{ (stat.count / snap.totalTriages * 100) | number: '1.0-0' }}%</span>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- BAR: Node comparison -->
+      <div class="chart-card node-chart-card">
+        <div class="chart-title">Actividad por Nodo</div>
+        <div class="node-bars">
+          @for (nr of snap.nodeReports; track nr.nodeId) {
+            <div class="node-bar-group" [class.offline]="!nr.online">
+              <div class="node-bar-header">
+                <span class="node-bar-dot" [style.background]="nr.nodeColor"></span>
+                <span class="node-bar-name">{{ nr.nodeName }}</span>
+                <span class="node-online-badge" [class.online]="nr.online">
+                  {{ nr.online ? 'EN LÍNEA' : 'FUERA DE LÍNEA' }}
+                </span>
+              </div>
+
+              <div class="metric-row">
+                <span class="metric-tag adm-tag">ADM</span>
+                <div class="metric-track">
+                  <div class="metric-fill" [style.width.%]="barPct(nr.admissions)" [style.background]="nr.nodeColor"></div>
+                </div>
+                <span class="metric-num">{{ nr.admissions }}</span>
+              </div>
+
+              <div class="metric-row">
+                <span class="metric-tag tri-tag">TRI</span>
+                <div class="metric-track">
+                  <div class="metric-fill tri-fill" [style.width.%]="barPct(nr.triages)"></div>
+                </div>
+                <span class="metric-num">{{ nr.triages }}</span>
+              </div>
+
+              <div class="metric-row">
+                <span class="metric-tag emr-tag">EMR</span>
+                <div class="metric-track">
+                  <div class="metric-fill emr-fill" [style.width.%]="barPct(nr.emr)"></div>
+                </div>
+                <span class="metric-num">{{ nr.emr }}</span>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="bar-legend">
+          <span class="bl-dot" style="background:#1d4ed8"></span> Admisiones
+          <span class="bl-dot" style="background:#7c3aed"></span> Triages
+          <span class="bl-dot" style="background:#0f766e"></span> EMR
+        </div>
+      </div>
+    </div>
+
+    <!-- WARD DISTRIBUTION -->
+    @if (snap.wardStats.length > 0) {
+      <div class="chart-card ward-card">
+        <div class="chart-title">Distribución por Servicio (Ward)</div>
+        <div class="ward-bars">
+          @for (w of snap.wardStats; track w.ward) {
+            <div class="ward-row">
+              <span class="ward-label">{{ w.ward }}</span>
+              <div class="ward-track">
+                <div class="ward-fill" [style.width.%]="wardPct(w.count)">
+                  <span class="ward-val-inside">{{ w.count }}</span>
+                </div>
+              </div>
+              <span class="ward-pct">{{ (w.count / snap.totalAdmissions * 100) | number: '1.0-0' }}%</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- NODE STATUS TABLE -->
+    <div class="chart-card node-table-card">
+      <div class="chart-title">Estado de Nodos — Resumen</div>
+      <table class="node-table">
+        <thead>
+          <tr>
+            <th>Nodo</th>
+            <th>Estado</th>
+            <th>Gateway</th>
+            <th>Admisiones</th>
+            <th>Triages</th>
+            <th>EMR</th>
+            <th>Cobertura triage</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (nr of snap.nodeReports; track nr.nodeId) {
+            <tr [class.row-offline]="!nr.online">
+              <td>
+                <span class="nt-dot" [style.background]="nr.nodeColor"></span>
+                {{ nr.nodeName }}
+              </td>
+              <td>
+                <span class="status-pill" [class.pill-online]="nr.online" [class.pill-offline]="!nr.online">
+                  {{ nr.online ? 'En línea' : 'Fuera de línea' }}
+                </span>
+              </td>
+              <td class="mono-cell">localhost:{{ nr.nodeId === 'node1' ? '8080' : nr.nodeId === 'node2' ? '8090' : '8100' }}</td>
+              <td class="num-cell">{{ nr.admissions }}</td>
+              <td class="num-cell">{{ nr.triages }}</td>
+              <td class="num-cell">{{ nr.emr }}</td>
+              <td class="num-cell">
+                {{ nr.admissions > 0 ? ((nr.triages / nr.admissions) * 100 | number: '1.0-0') + '%' : '—' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+  }
+
+</div>

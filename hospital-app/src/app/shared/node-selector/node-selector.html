@@ -1,0 +1,16 @@
+<div class="node-selector">
+  <span class="node-label">Nodo activo:</span>
+  <div class="node-buttons">
+    @for (node of nodeService.nodes; track node.id) {
+      <button
+        class="node-btn"
+        [class.active]="nodeService.selectedNode().id === node.id"
+        (click)="select(node)"
+        [title]="node.gatewayUrl"
+      >
+        {{ node.name }}
+      </button>
+    }
+  </div>
+  <span class="node-url">{{ nodeService.selectedNode().gatewayUrl }}</span>
+</div>

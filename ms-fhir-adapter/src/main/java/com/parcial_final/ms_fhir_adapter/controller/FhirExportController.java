@@ -3,6 +3,8 @@ package com.parcial_final.ms_fhir_adapter.controller;
 import com.parcial_final.ms_fhir_adapter.dto.CorePatientRegistrationDTO;
 import com.parcial_final.ms_fhir_adapter.dto.CoverageRegistrationDTO;
 import com.parcial_final.ms_fhir_adapter.dto.InternalPatientDTO;
+import com.parcial_final.ms_fhir_adapter.dto.TriageRequestDTO;
+import com.parcial_final.ms_fhir_adapter.dto.TriageResponseDTO;
 import com.parcial_final.ms_fhir_adapter.service.FhirExportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -34,8 +36,23 @@ public class FhirExportController {
         return fhirExportService.registerCoverage(coverageDTO);
     }
 
+    @PostMapping(value = "/triage", produces = MediaType.APPLICATION_JSON_VALUE)
+    public TriageResponseDTO registerTriage(@RequestBody TriageRequestDTO triageRequestDTO) {
+        return fhirExportService.registerTriage(triageRequestDTO);
+    }
+
     @GetMapping(value = "/patients", produces = MediaType.APPLICATION_JSON_VALUE)
     public String getAllPatients() {
         return fhirExportService.getAllPatients();
+    }
+
+    @GetMapping(value = "/resources/{type}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public String getResourcesByType(@org.springframework.web.bind.annotation.PathVariable("type") String type) {
+        return fhirExportService.getResourcesByType(type);
+    }
+
+    @GetMapping(value = "/observations", produces = MediaType.APPLICATION_JSON_VALUE)
+    public String getAllObservations() {
+        return fhirExportService.getResourcesByType("Observation");
     }
 }

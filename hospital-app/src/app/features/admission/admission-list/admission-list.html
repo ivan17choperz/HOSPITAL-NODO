@@ -1,0 +1,61 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Admisiones</h2>
+      <p class="subtitle">Registro de pacientes admitidos</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="load()">Actualizar</button>
+      <a class="btn-primary" routerLink="/admissions/new">Nueva admisión</a>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="state-message">Cargando admisiones...</div>
+  }
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (admissions().length === 0) {
+      <div class="state-message">
+        No hay admisiones registradas.
+        <a routerLink="/admissions/new">Registrar la primera admisión</a>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>N.° Episodio</th>
+              <th>Paciente</th>
+              <th>Identificación</th>
+              <th>Sala / Ward</th>
+              <th>Fecha admisión</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of admissions(); track a.id) {
+              <tr>
+                <td class="episode">{{ episodeNumber(a.id) }}</td>
+                <td>{{ a.firstName }} {{ a.lastName }}</td>
+                <td class="mono">{{ a.identifier || '—' }}</td>
+                <td>{{ a.ward }}</td>
+                <td>{{ a.admittedAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  <span class="badge" [class]="'badge-' + (a.status | lowercase)">
+                    {{ a.status }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="count">{{ admissions().length }} registro(s) encontrado(s)</p>
+    }
+  }
+</div>

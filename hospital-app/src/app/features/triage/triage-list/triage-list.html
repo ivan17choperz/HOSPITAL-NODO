@@ -1,0 +1,65 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Triage</h2>
+      <p class="subtitle">Registro de clasificación de pacientes</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" (click)="load()">Actualizar</button>
+      <a class="btn-primary" routerLink="/triage/new">Nuevo triage</a>
+    </div>
+  </div>
+
+  @if (loading()) {
+    <div class="state-message">Cargando triages...</div>
+  }
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  @if (!loading() && !error()) {
+    @if (triages().length === 0) {
+      <div class="state-message">
+        No hay triages registrados.
+        <a routerLink="/triage/new">Registrar el primero</a>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Episodio</th>
+              <th>Clasificación</th>
+              <th>SpO₂</th>
+              <th>FC</th>
+              <th>TA</th>
+              <th>Temp</th>
+              <th>Dolor</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of triages(); track t.id) {
+              <tr>
+                <td class="episode">{{ episodeNumber(t.admissionId) }}</td>
+                <td>
+                  <span class="cat-badge" [class]="'cat-' + t.category.toLowerCase()">
+                    {{ CATEGORIES[t.category].label.split('—')[0].trim() }}
+                  </span>
+                </td>
+                <td>{{ t.oxygenSaturation !== null ? t.oxygenSaturation + '%' : '—' }}</td>
+                <td>{{ t.heartRate !== null ? t.heartRate + ' lpm' : '—' }}</td>
+                <td>{{ t.systolicBp !== null ? t.systolicBp + '/' + (t.diastolicBp ?? '?') : '—' }}</td>
+                <td>{{ t.temperature !== null ? t.temperature + '°C' : '—' }}</td>
+                <td>{{ t.painScore !== null ? t.painScore + '/10' : '—' }}</td>
+                <td>{{ t.createdAt | date: 'dd/MM/yy HH:mm' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="count">{{ triages().length }} registro(s)</p>
+    }
+  }
+</div>

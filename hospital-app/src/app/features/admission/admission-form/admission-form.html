@@ -1,0 +1,133 @@
+@if (success(); as admitted) {
+  <div class="page">
+    <div class="success-card">
+      <div class="success-icon">&#10003;</div>
+      <h2>Admisión registrada</h2>
+      <p>El paciente ha sido admitido y su registro FHIR ha sido creado.</p>
+
+      <dl class="summary">
+        <div class="summary-row highlight">
+          <dt>N.° de Episodio</dt>
+          <dd class="episode">{{ episodeNumber(admitted.id) }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>Paciente</dt>
+          <dd>{{ admitted.firstName }} {{ admitted.lastName }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>Sala / Ward</dt>
+          <dd>{{ admitted.ward }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>Estado</dt>
+          <dd>{{ admitted.status }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>ID de Admisión</dt>
+          <dd class="mono">{{ admitted.id }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>ID de Paciente (FHIR)</dt>
+          <dd class="mono">{{ admitted.patientId }}</dd>
+        </div>
+      </dl>
+
+      <div class="success-actions">
+        <button class="btn-secondary" (click)="reset()">Nueva admisión</button>
+        <button class="btn-primary" (click)="goToList()">Ver todas las admisiones</button>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h2>Nueva Admisión</h2>
+        <p class="subtitle">Complete los datos del paciente para registrar la admisión</p>
+      </div>
+      <a class="btn-back" routerLink="/admissions">Volver</a>
+    </div>
+
+    @if (error()) {
+      <div class="alert-error">{{ error() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="admission-form" novalidate>
+
+      <fieldset>
+        <legend>Datos del Paciente</legend>
+
+        <div class="form-row">
+          <div class="form-group" [class.invalid]="isInvalid('firstName')">
+            <label for="firstName">Nombre <span class="required">*</span></label>
+            <input id="firstName" type="text" formControlName="firstName" placeholder="Ej: Juan" />
+            @if (isInvalid('firstName')) {
+              <span class="error-msg">El nombre es obligatorio (mínimo 2 caracteres)</span>
+            }
+          </div>
+
+          <div class="form-group" [class.invalid]="isInvalid('lastName')">
+            <label for="lastName">Apellido <span class="required">*</span></label>
+            <input id="lastName" type="text" formControlName="lastName" placeholder="Ej: Pérez" />
+            @if (isInvalid('lastName')) {
+              <span class="error-msg">El apellido es obligatorio (mínimo 2 caracteres)</span>
+            }
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="gender">Sexo</label>
+            <select id="gender" formControlName="gender">
+              <option value="">— Seleccionar —</option>
+              <option value="male">Masculino</option>
+              <option value="female">Femenino</option>
+              <option value="other">Otro</option>
+              <option value="unknown">Desconocido</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="birthDate">Fecha de nacimiento</label>
+            <input id="birthDate" type="date" formControlName="birthDate" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="identifier">Identificación (DNI / Cédula)</label>
+          <input id="identifier" type="text" formControlName="identifier" placeholder="Ej: 12345678" />
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Datos de la Admisión</legend>
+
+        <div class="form-group" [class.invalid]="isInvalid('ward')">
+          <label for="ward">Sala / Ward <span class="required">*</span></label>
+          <input id="ward" type="text" formControlName="ward" placeholder="Ej: Emergencias, UCI, Cirugía" />
+          @if (isInvalid('ward')) {
+            <span class="error-msg">La sala es obligatoria</span>
+          }
+        </div>
+
+        <div class="form-group info">
+          <label>N.° de Episodio</label>
+          <p class="info-text">Se generará automáticamente al registrar la admisión.</p>
+        </div>
+
+        <div class="form-group info">
+          <label>ID de Paciente (FHIR)</label>
+          <p class="info-text">Se generará automáticamente un UUID único y se creará el recurso Patient en FHIR.</p>
+        </div>
+      </fieldset>
+
+      <div class="form-footer">
+        <a class="btn-back" routerLink="/admissions">Cancelar</a>
+        <button type="submit" class="btn-primary" [disabled]="submitting()">
+          {{ submitting() ? 'Registrando...' : 'Registrar admisión' }}
+        </button>
+      </div>
+
+    </form>
+  </div>
+}

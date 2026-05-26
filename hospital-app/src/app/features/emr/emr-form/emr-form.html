@@ -1,0 +1,255 @@
+@if (success(); as rec) {
+  <div class="page">
+    <div class="success-card">
+      <div class="success-header">
+        <span class="success-icon">&#10003;</span>
+        <div>
+          <h2>Historia Clínica registrada</h2>
+          <p>Episodio {{ episodeNumber() }} — {{ rec.diagnoses.length }} diagnóstico(s), {{ rec.medications.length }} medicamento(s)</p>
+        </div>
+      </div>
+      <dl class="summary">
+        <div class="summary-row highlight">
+          <dt>N.° de Episodio</dt>
+          <dd class="episode">{{ episodeNumber() }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>ID de Registro</dt>
+          <dd class="mono">{{ rec.id }}</dd>
+        </div>
+        <div class="summary-row">
+          <dt>Diagnósticos</dt>
+          <dd>
+            @for (d of rec.diagnoses; track d.icd10Code) {
+              <div>{{ d.icd10Code ? '[' + d.icd10Code + '] ' : '' }}{{ d.description }}</div>
+            }
+          </dd>
+        </div>
+        <div class="summary-row">
+          <dt>Medicamentos</dt>
+          <dd>
+            @for (m of rec.medications; track m.medicationName) {
+              <div>{{ m.medicationName }} {{ m.dose }} {{ m.unit }} — {{ m.frequency }}</div>
+            }
+          </dd>
+        </div>
+      </dl>
+      <div class="success-actions">
+        <button class="btn-secondary" (click)="reset()">Nueva consulta</button>
+        <a class="btn-primary" routerLink="/emr">Ver Historia Clínica</a>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h2>Historia Clínica — Consulta Médica</h2>
+        <p class="subtitle">Registro de diagnóstico y prescripción con FHIR R5</p>
+      </div>
+      <a class="btn-back" routerLink="/emr">Volver</a>
+    </div>
+
+    @if (error()) {
+      <div class="alert-error">{{ error() }}</div>
+    }
+
+    <div class="emr-layout">
+      <!-- MAIN FORM -->
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="emr-form">
+
+        <!-- Episode linkage -->
+        <fieldset>
+          <legend>Episodio del Paciente</legend>
+          <div class="form-group" [class.invalid]="isInvalid('admissionId')">
+            <label for="admissionId">Admisión / Episodio <span class="req">*</span></label>
+            @if (admissions().length > 0) {
+              <select id="admissionId" formControlName="admissionId">
+                <option value="">— Seleccionar admisión —</option>
+                @for (a of admissions(); track a.id) {
+                  <option [value]="a.id">
+                    EP-{{ a.id.replace('-','').substring(0,8).toUpperCase() }} — {{ a.firstName }} {{ a.lastName }} ({{ a.ward }})
+                  </option>
+                }
+              </select>
+            } @else {
+              <input id="admissionId" type="text" formControlName="admissionId" placeholder="UUID de admisión" />
+            }
+            @if (selectedAdmission()) {
+              <span class="ep-tag">Episodio: <strong>{{ episodeNumber() }}</strong> · Paciente ID: <span class="mono-sm">{{ selectedAdmission()!.patientId }}</span></span>
+            }
+            @if (isInvalid('admissionId')) {
+              <span class="error-msg">Seleccione una admisión</span>
+            }
+          </div>
+        </fieldset>
+
+        <!-- Anamnesis -->
+        <fieldset>
+          <legend>Anamnesis</legend>
+          <div class="form-group" [class.invalid]="isInvalid('anamnesis')">
+            <label for="anamnesis">Motivo de consulta / Historia de la enfermedad actual <span class="req">*</span></label>
+            <textarea id="anamnesis" formControlName="anamnesis" rows="3"
+                      placeholder="Paciente refiere... Inicio hace... Signos y síntomas asociados..."></textarea>
+            @if (isInvalid('anamnesis')) {
+              <span class="error-msg">El campo anamnesis es requerido</span>
+            }
+          </div>
+        </fieldset>
+
+        <!-- Diagnoses -->
+        <fieldset formArrayName="diagnoses">
+          <legend>
+            Diagnósticos (FHIR Condition — ICD-10)
+            <button type="button" class="btn-add" (click)="addDiagnosis()">+ Agregar</button>
+          </legend>
+
+          @for (d of diagnosesArray.controls; track $index) {
+            <div class="entry-card" [formGroupName]="$index">
+              <div class="entry-header">
+                <span class="entry-num">Dx {{ $index + 1 }}</span>
+                @if (diagnosesArray.length > 1) {
+                  <button type="button" class="btn-remove" (click)="removeDiagnosis($index)">Eliminar</button>
+                }
+              </div>
+              <div class="dx-row">
+                <div class="form-group col-2">
+                  <label>Código ICD-10</label>
+                  <input type="text" formControlName="icd10Code" placeholder="Ej: J06.9" />
+                </div>
+                <div class="form-group col-6">
+                  <label>Descripción del diagnóstico <span class="req">*</span></label>
+                  <input type="text" formControlName="description"
+                         placeholder="Ej: Infección aguda de vías respiratorias superiores" />
+                </div>
+                <div class="form-group col-2">
+                  <label>Estado clínico</label>
+                  <select formControlName="clinicalStatus">
+                    <option value="active">Activo</option>
+                    <option value="resolved">Resuelto</option>
+                    <option value="inactive">Inactivo</option>
+                    <option value="remission">En remisión</option>
+                  </select>
+                </div>
+                <div class="form-group col-2">
+                  <label>Verificación</label>
+                  <select formControlName="verificationStatus">
+                    <option value="confirmed">Confirmado</option>
+                    <option value="provisional">Provisional</option>
+                    <option value="differential">Diferencial</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          }
+        </fieldset>
+
+        <!-- Medications -->
+        <fieldset formArrayName="medications">
+          <legend>
+            Prescripción (FHIR MedicationRequest)
+            <button type="button" class="btn-add" (click)="addMedication()">+ Agregar</button>
+          </legend>
+
+          @for (m of medicationsArray.controls; track $index) {
+            <div class="entry-card" [formGroupName]="$index">
+              <div class="entry-header">
+                <span class="entry-num">Med {{ $index + 1 }}</span>
+                @if (medicationsArray.length > 1) {
+                  <button type="button" class="btn-remove" (click)="removeMedication($index)">Eliminar</button>
+                }
+              </div>
+              <div class="med-grid">
+                <div class="form-group col-3">
+                  <label>Medicamento <span class="req">*</span></label>
+                  <input type="text" formControlName="medicationName" placeholder="Ej: Amoxicilina" />
+                </div>
+                <div class="form-group col-1">
+                  <label>Dosis</label>
+                  <input type="text" formControlName="dose" placeholder="500" />
+                </div>
+                <div class="form-group col-1">
+                  <label>Unidad</label>
+                  <select formControlName="unit">
+                    <option value="mg">mg</option>
+                    <option value="g">g</option>
+                    <option value="ml">ml</option>
+                    <option value="mcg">mcg</option>
+                    <option value="UI">UI</option>
+                    <option value="gtt">gtt</option>
+                  </select>
+                </div>
+                <div class="form-group col-2">
+                  <label>Vía</label>
+                  <select formControlName="route">
+                    @for (r of ROUTES; track r.code) {
+                      <option [value]="r.code">{{ r.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group col-2">
+                  <label>Frecuencia</label>
+                  <select formControlName="frequency">
+                    @for (f of FREQUENCIES; track f.code) {
+                      <option [value]="f.code">{{ f.label }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="form-group col-1">
+                  <label>Duración (días)</label>
+                  <input type="number" formControlName="durationDays" placeholder="7" min="1" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Notas de prescripción</label>
+                <input type="text" formControlName="notes" placeholder="Indicaciones adicionales..." />
+              </div>
+            </div>
+          }
+        </fieldset>
+
+        <!-- Clinician notes -->
+        <fieldset>
+          <legend>Notas del Médico</legend>
+          <div class="form-group">
+            <textarea formControlName="clinicianNotes" rows="2"
+                      placeholder="Plan terapéutico, indicaciones al alta, seguimiento..."></textarea>
+          </div>
+        </fieldset>
+
+        <div class="form-footer">
+          <button type="button" class="btn-fhir" (click)="toggleFhir()">
+            {{ showFhir() ? 'Ocultar' : 'Ver' }} FHIR
+          </button>
+          <button type="submit" class="btn-primary" [disabled]="submitting()">
+            {{ submitting() ? 'Guardando...' : 'Guardar Historia Clínica' }}
+          </button>
+        </div>
+      </form>
+
+      <!-- FHIR PREVIEW ASIDE -->
+      <aside class="emr-aside">
+        <div class="aside-info">
+          <h3>Recursos FHIR R5</h3>
+          <p>Se generarán automáticamente al guardar:</p>
+          <ul>
+            <li><strong>Condition</strong> por cada diagnóstico ICD-10</li>
+            <li><strong>MedicationRequest</strong> por cada medicamento prescrito</li>
+            <li>Referencia al <strong>Patient</strong> y al <strong>Encounter</strong> (episodio)</li>
+          </ul>
+        </div>
+
+        @if (showFhir()) {
+          <div class="fhir-panel">
+            <div class="fhir-tabs">
+              <button [class.active]="fhirTab() === 'condition'" (click)="setFhirTab('condition')">Condition</button>
+              <button [class.active]="fhirTab() === 'medication'" (click)="setFhirTab('medication')">MedicationRequest</button>
+              <button [class.active]="fhirTab() === 'bundle'" (click)="setFhirTab('bundle')">Bundle</button>
+            </div>
+            <pre class="fhir-json">{{ fhirPreview() }}</pre>
+          </div>
+        }
+      </aside>
+    </div>
+  </div>
+}

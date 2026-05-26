@@ -2,19 +2,16 @@ package com.parcial_final.ms_sync_agent;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 
-@SpringBootApplication(exclude = {
-        DataSourceAutoConfiguration.class,
-        DataSourceTransactionManagerAutoConfiguration.class,
-        HibernateJpaAutoConfiguration.class
+@SpringBootApplication(excludeName = {
+        "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration",
+        "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration",
+        "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration"
 })
 public class MsSyncAgentApplication {
 
@@ -23,10 +20,10 @@ public class MsSyncAgentApplication {
     }
 
     @Bean
-    public RestTemplate restTemplate(RestTemplateBuilder builder) {
-        return builder
-                .connectTimeout(Duration.ofSeconds(3))
-                .readTimeout(Duration.ofSeconds(3))
-                .build();
+    public RestTemplate restTemplate() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory factory = new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout((int) Duration.ofSeconds(3).toMillis());
+        factory.setReadTimeout((int) Duration.ofSeconds(3).toMillis());
+        return new RestTemplate(factory);
     }
 }

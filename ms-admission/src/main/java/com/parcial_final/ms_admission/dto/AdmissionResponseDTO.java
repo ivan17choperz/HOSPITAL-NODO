@@ -23,6 +23,8 @@ public class AdmissionResponseDTO {
     private LocalDate birthDate;
     private String identifier;
     private String ward;
+    private String episodeNumber;
+    private String nodeId;
     private LocalDateTime admittedAt;
     private String status;
 }

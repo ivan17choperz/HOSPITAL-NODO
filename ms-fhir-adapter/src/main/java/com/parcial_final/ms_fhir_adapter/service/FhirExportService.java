@@ -4,6 +4,8 @@ import ca.uhn.fhir.context.FhirContext;
 import com.parcial_final.ms_fhir_adapter.dto.CorePatientRegistrationDTO;
 import com.parcial_final.ms_fhir_adapter.dto.CoverageRegistrationDTO;
 import com.parcial_final.ms_fhir_adapter.dto.InternalPatientDTO;
+import com.parcial_final.ms_fhir_adapter.dto.TriageRequestDTO;
+import com.parcial_final.ms_fhir_adapter.dto.TriageResponseDTO;
 import com.parcial_final.ms_fhir_adapter.entity.FhirResourceEntity;
 import com.parcial_final.ms_fhir_adapter.repository.FhirResourceRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +21,9 @@ import org.hl7.fhir.r5.model.Identifier;
 import org.hl7.fhir.r5.model.Organization;
 import org.hl7.fhir.r5.model.Patient;
 import org.hl7.fhir.r5.model.Period;
+import org.hl7.fhir.r5.model.Quantity;
 import org.hl7.fhir.r5.model.Reference;
+import org.hl7.fhir.r5.model.Observation;
 import org.hl7.fhir.r5.model.StringType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +32,7 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -82,6 +87,24 @@ public class FhirExportService {
         return fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(transaction);
     }
 
+    @Transactional
+    public TriageResponseDTO registerTriage(TriageRequestDTO triageDTO) {
+        String scale = triageDTO.getTriageScale() == null ? "MANCHESTER" : triageDTO.getTriageScale().toUpperCase();
+        String level = classifyTriageLevel(triageDTO, scale);
+        Observation observation = buildTriageObservation(triageDTO, scale, level);
+        String payload = fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(observation);
+
+        upsertResource("Observation", observation.getIdPart(), payload);
+
+        return TriageResponseDTO.builder()
+                .episodeNumber(triageDTO.getEpisodeNumber())
+                .triageScale(scale)
+                .triageLevel(level)
+                .observationId(observation.getIdPart())
+                .observationFhirJson(payload)
+                .build();
+    }
+
     public String getAllPatients() {
         Bundle bundle = new Bundle();
         bundle.setType(Bundle.BundleType.SEARCHSET);
@@ -90,6 +113,23 @@ public class FhirExportService {
         for (FhirResourceEntity stored : persistedPatients) {
             Patient patient = fhirContext.newJsonParser().parseResource(Patient.class, stored.getPayloadJson());
             bundle.addEntry().setResource(patient);
+        }
+        return fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(bundle);
+    }
+
+    public String getResourcesByType(String resourceType) {
+        Bundle bundle = new Bundle();
+        bundle.setType(Bundle.BundleType.SEARCHSET);
+        List<FhirResourceEntity> persisted = fhirResourceRepository.findAllByResourceType(resourceType);
+        bundle.setTotal(persisted.size());
+        for (FhirResourceEntity stored : persisted) {
+            try {
+                org.hl7.fhir.r5.model.Resource res = (org.hl7.fhir.r5.model.Resource) fhirContext.newJsonParser()
+                        .parseResource(stored.getPayloadJson());
+                bundle.addEntry().setResource(res);
+            } catch (Exception e) {
+                log.warn("Failed to parse stored FHIR resource (type={} id={}): {}", resourceType, stored.getResourceId(), e.getMessage());
+            }
         }
         return fhirContext.newJsonParser().setPrettyPrint(true).encodeResourceToString(bundle);
     }
@@ -320,5 +360,73 @@ public class FhirExportService {
         entity.setResourceId(resourceId);
         entity.setPayloadJson(payload);
         fhirResourceRepository.save(entity);
+    }
+
+    private Observation buildTriageObservation(TriageRequestDTO dto, String scale, String level) {
+        Observation observation = new Observation();
+        observation.setId("triage-" + UUID.randomUUID());
+        observation.setStatus(Enumerations.ObservationStatus.FINAL);
+        observation.setCode(new CodeableConcept().setText("Emergency triage vital signs"));
+
+        if (dto.getPatientId() != null) {
+            observation.setSubject(new Reference("Patient/" + dto.getPatientId()));
+        }
+        if (dto.getEpisodeNumber() != null && !dto.getEpisodeNumber().isBlank()) {
+            observation.setEncounter(new Reference("Encounter/" + dto.getEpisodeNumber()));
+            observation.addIdentifier(new Identifier()
+                    .setSystem("http://hospital.com/identifiers/episode")
+                    .setValue(dto.getEpisodeNumber()));
+        }
+
+        addQuantityComponent(observation, "Heart rate", dto.getHeartRate(), "/min");
+        addQuantityComponent(observation, "Respiratory rate", dto.getRespiratoryRate(), "/min");
+        addQuantityComponent(observation, "Oxygen saturation", dto.getOxygenSaturation(), "%");
+        addQuantityComponent(observation, "Body temperature", dto.getTemperatureCelsius(), "Cel");
+        addQuantityComponent(observation, "Systolic blood pressure", dto.getSystolicBloodPressure(), "mm[Hg]");
+        addQuantityComponent(observation, "Diastolic blood pressure", dto.getDiastolicBloodPressure(), "mm[Hg]");
+        addQuantityComponent(observation, "Pain scale", dto.getPainScale0To10(), "{score}");
+
+        observation.addInterpretation(new CodeableConcept().setText(scale + " " + level));
+        return observation;
+    }
+
+    private String classifyTriageLevel(TriageRequestDTO dto, String scale) {
+        boolean severe = isSevere(dto);
+        boolean urgent = isUrgent(dto);
+
+        if ("ESI".equals(scale)) {
+            if (severe) return "ESI-1";
+            if (urgent) return "ESI-2";
+            return "ESI-3";
+        }
+
+        if (severe) return "MTS-RED";
+        if (urgent) return "MTS-ORANGE";
+        return "MTS-YELLOW";
+    }
+
+    private boolean isSevere(TriageRequestDTO dto) {
+        return (dto.getOxygenSaturation() != null && dto.getOxygenSaturation() < 90.0)
+                || (dto.getSystolicBloodPressure() != null && dto.getSystolicBloodPressure() < 80)
+                || (dto.getHeartRate() != null && dto.getHeartRate() > 150);
+    }
+
+    private boolean isUrgent(TriageRequestDTO dto) {
+        return (dto.getOxygenSaturation() != null && dto.getOxygenSaturation() < 94.0)
+                || (dto.getSystolicBloodPressure() != null && dto.getSystolicBloodPressure() < 95)
+                || (dto.getHeartRate() != null && dto.getHeartRate() > 120)
+                || (dto.getPainScale0To10() != null && dto.getPainScale0To10() >= 7)
+                || (dto.getTemperatureCelsius() != null && dto.getTemperatureCelsius() >= 39.0);
+    }
+
+    private void addQuantityComponent(Observation observation, String label, Number value, String unit) {
+        if (value == null) {
+            return;
+        }
+        Observation.ObservationComponentComponent component = observation.addComponent();
+        component.setCode(new CodeableConcept().setText(label));
+        component.setValue(new Quantity()
+                .setValue(value.doubleValue())
+                .setUnit(unit));
     }
 }
