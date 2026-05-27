@@ -114,7 +114,7 @@ services:
   keycloak-node1:
     image: quay.io/keycloak/keycloak:24.0.4
     profiles: ["node1"]
-    container_name: hospital-keycloak
+    container_name: hospital-node1-keycloak
     restart: unless-stopped
     environment:
       - KEYCLOAK_ADMIN=admin
@@ -318,7 +318,7 @@ services:
       - MS_SYNC_AGENT_URL=http://ms-sync-agent-node1:8086
       - MS_TRIAGE_URL=http://ms-triage-node1:8087
       - MS_DOCTOR_URL=http://ms-doctor-node1:8088
-      - KEYCLOAK_JWK_URI=http://hospital-keycloak:8080/realms/hospital/protocol/openid-connect/certs
+      - KEYCLOAK_JWK_URI=http://hospital-node1-keycloak:8080/realms/hospital/protocol/openid-connect/certs
     depends_on:
       - ms-admission-node1
       - ms-discharge-node1
@@ -420,6 +420,24 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - node2-network
+
+  keycloak-node2:
+    image: quay.io/keycloak/keycloak:24.0.4
+    profiles: ["node2"]
+    container_name: hospital-node2-keycloak
+    restart: unless-stopped
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME_STRICT=false
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak/hospital-realm.json:/opt/keycloak/data/import/hospital-realm.json:ro
+    ports:
+      - "8280:8080"
     networks:
       - node2-network
 
@@ -612,6 +630,7 @@ services:
       - MS_SYNC_AGENT_URL=http://ms-sync-agent-node2:8086
       - MS_TRIAGE_URL=http://ms-triage-node2:8087
       - MS_DOCTOR_URL=http://ms-doctor-node2:8088
+      - KEYCLOAK_JWK_URI=http://hospital-node2-keycloak:8080/realms/hospital/protocol/openid-connect/certs
     depends_on:
       - ms-admission-node2
       - ms-discharge-node2
@@ -621,6 +640,7 @@ services:
       - ms-sync-agent-node2
       - ms-triage-node2
       - ms-doctor-node2
+      - keycloak-node2
     networks:
       - node2-network
 
@@ -712,6 +732,24 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - node3-network
+
+  keycloak-node3:
+    image: quay.io/keycloak/keycloak:24.0.4
+    profiles: ["node3"]
+    container_name: hospital-node3-keycloak
+    restart: unless-stopped
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HTTP_ENABLED=true
+      - KC_HOSTNAME_STRICT=false
+    command: start-dev --import-realm
+    volumes:
+      - ./keycloak/hospital-realm.json:/opt/keycloak/data/import/hospital-realm.json:ro
+    ports:
+      - "8380:8080"
     networks:
       - node3-network
 
@@ -904,6 +942,7 @@ services:
       - MS_SYNC_AGENT_URL=http://ms-sync-agent-node3:8086
       - MS_TRIAGE_URL=http://ms-triage-node3:8087
       - MS_DOCTOR_URL=http://ms-doctor-node3:8088
+      - KEYCLOAK_JWK_URI=http://hospital-node3-keycloak:8080/realms/hospital/protocol/openid-connect/certs
     depends_on:
       - ms-admission-node3
       - ms-discharge-node3
@@ -913,6 +952,7 @@ services:
       - ms-sync-agent-node3
       - ms-triage-node3
       - ms-doctor-node3
+      - keycloak-node3
     networks:
       - node3-network
 

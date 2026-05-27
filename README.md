@@ -46,7 +46,7 @@ Sistema de gestión hospitalaria distribuido en 3 nodos independientes (Bogotá,
 │  ├─ sync-agent:8086           ├─ sync-agent:8186      ├─ sync-agent:8286  │
 │  ├─ triage    :8087           ├─ triage    :8187      ├─ triage    :8287  │
 │  ├─ doctor    :8088           ├─ doctor    :8188      ├─ doctor    :8288  │
-│  ├─ keycloak  :8180 ◄── OAuth2 (solo nodo 1)                             │
+│  ├─ keycloak  :8180           ├─ keycloak  :8280      ├─ keycloak  :8380  │
 │  ├─ prometheus:9090           ├─ prometheus:9091      ├─ prometheus:9092  │
 │  ├─ grafana   :3000           ├─ grafana   :3001      ├─ grafana   :3002  │
 │  ├─ rabbitmq  :5672           ├─ rabbitmq  :5673      ├─ rabbitmq  :5674  │
@@ -128,7 +128,7 @@ docker-compose --profile node1 up --build ms-fhir-adapter-node1 -d
 | ms-sync-agent | 8086 | 8186 | 8286 |
 | ms-triage | 8087 | 8187 | 8287 |
 | ms-doctor | 8088 | 8188 | 8288 |
-| **Keycloak** | **8180** | — | — |
+| **Keycloak** | **8180** | **8280** | **8380** |
 | **Prometheus** | **9090** | 9091 | 9092 |
 | **Grafana** | **3000** | 3001 | 3002 |
 | PostgreSQL primaria | 5432 | 5433 | 5434 |
@@ -143,7 +143,7 @@ docker-compose --profile node1 up --build ms-fhir-adapter-node1 -d
 
 Las rutas `/api/fhir/**` requieren un JWT Bearer token. El resto de rutas son públicas.
 
-**Keycloak solo corre en nodo 1** (`http://localhost:8180`). El realm `hospital` se importa automáticamente al iniciar.
+Cada nodo tiene su propio Keycloak independiente con el mismo realm `hospital`. El realm se importa automáticamente al iniciar desde `keycloak/hospital-realm.json`.
 
 ### Credenciales pre-configuradas
 
@@ -156,7 +156,16 @@ Client: `fhir-client` / Secret: `fhir-secret`
 
 ### Paso 1 — Obtener token de acceso
 
+Cada nodo tiene su propio Keycloak. Usar el que corresponda al nodo que se quiere llamar:
+
+| Nodo | Token endpoint |
+|---|---|
+| Nodo 1 | `http://localhost:8180/realms/hospital/protocol/openid-connect/token` |
+| Nodo 2 | `http://localhost:8280/realms/hospital/protocol/openid-connect/token` |
+| Nodo 3 | `http://localhost:8380/realms/hospital/protocol/openid-connect/token` |
+
 ```bash
+# Nodo 1
 curl -s -X POST http://localhost:8180/realms/hospital/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
@@ -166,7 +175,7 @@ curl -s -X POST http://localhost:8180/realms/hospital/protocol/openid-connect/to
   -d "password=doctor123" | jq .access_token
 ```
 
-O en Postman: `POST http://localhost:8180/realms/hospital/protocol/openid-connect/token` con body `x-www-form-urlencoded` y los mismos campos.
+En Postman: `POST <token-endpoint>` con body `x-www-form-urlencoded` y los mismos campos.
 
 ### Paso 2 — Usar el token en llamadas FHIR
 
@@ -658,12 +667,15 @@ docker start hospital-node2-gateway
 
 ## Flujo de prueba end-to-end
 
-### Paso 1 — Obtener token OAuth2
+### Paso 1 — Obtener token OAuth2 (nodo 1)
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8180/realms/hospital/protocol/openid-connect/token \
   -d "grant_type=password&client_id=fhir-client&client_secret=fhir-secret&username=doctor1&password=doctor123" \
   | jq -r .access_token)
+
+# Nodo 2: cambiar 8180 → 8280 y el gateway 8080 → 8090
+# Nodo 3: cambiar 8180 → 8380 y el gateway 8080 → 8100
 ```
 
 ### Paso 2 — Admitir paciente en nodo 1
@@ -753,7 +765,9 @@ GET http://localhost:9090/targets     ← todos los servicios en Prometheus
 | **Swagger UI nodo 1** | http://localhost:8080/swagger-ui.html | — |
 | **Swagger UI nodo 2** | http://localhost:8090/swagger-ui.html | — |
 | **Swagger UI nodo 3** | http://localhost:8100/swagger-ui.html | — |
-| **Keycloak Admin** | http://localhost:8180/admin | admin / admin |
+| **Keycloak Admin nodo 1** | http://localhost:8180/admin | admin / admin |
+| **Keycloak Admin nodo 2** | http://localhost:8280/admin | admin / admin |
+| **Keycloak Admin nodo 3** | http://localhost:8380/admin | admin / admin |
 | **Grafana nodo 1** | http://localhost:3000 | admin / admin |
 | **Grafana nodo 2** | http://localhost:3001 | admin / admin |
 | **Grafana nodo 3** | http://localhost:3002 | admin / admin |
