@@ -225,10 +225,15 @@ services:
     ports:
       - "8085:8085"
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node1:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
       - SPRING_RABBITMQ_HOST=rabbitmq-node1
       - SERVER_PORT=8085
       - NODE_ID=node1
     depends_on:
+      postgres-node1:
+        condition: service_healthy
       rabbitmq-node1:
         condition: service_healthy
     networks:
@@ -537,10 +542,15 @@ services:
     ports:
       - "8185:8085"
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node2:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
       - SPRING_RABBITMQ_HOST=rabbitmq-node2
       - SERVER_PORT=8085
       - NODE_ID=node2
     depends_on:
+      postgres-node2:
+        condition: service_healthy
       rabbitmq-node2:
         condition: service_healthy
     networks:
@@ -849,10 +859,15 @@ services:
     ports:
       - "8285:8085"
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-node3:5432/hospital_db
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=password
       - SPRING_RABBITMQ_HOST=rabbitmq-node3
       - SERVER_PORT=8085
       - NODE_ID=node3
     depends_on:
+      postgres-node3:
+        condition: service_healthy
       rabbitmq-node3:
         condition: service_healthy
     networks:
@@ -1040,6 +1055,36 @@ services:
       - "3002:3000"
     depends_on:
       - prometheus-node3
+    networks:
+      - node3-network
+
+  hospital-app-node1:
+    build: ./hospital-app
+    profiles: ["node1"]
+    container_name: hospital-node1-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    networks:
+      - node1-network
+
+  hospital-app-node2:
+    build: ./hospital-app
+    profiles: ["node2"]
+    container_name: hospital-node2-frontend
+    restart: unless-stopped
+    ports:
+      - "4201:80"
+    networks:
+      - node2-network
+
+  hospital-app-node3:
+    build: ./hospital-app
+    profiles: ["node3"]
+    container_name: hospital-node3-frontend
+    restart: unless-stopped
+    ports:
+      - "4202:80"
     networks:
       - node3-network
 

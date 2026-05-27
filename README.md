@@ -119,6 +119,7 @@ docker-compose --profile node1 up --build ms-fhir-adapter-node1 -d
 
 | Servicio | Nodo 1 | Nodo 2 | Nodo 3 |
 |---|---|---|---|
+| **Frontend Angular** | **4200** | **4201** | **4202** |
 | **Gateway (Spring Cloud)** | 8080 | 8090 | 8100 |
 | ms-admission | 8081 | 8181 | 8281 |
 | ms-discharge | 8082 | 8182 | 8282 |
@@ -762,6 +763,9 @@ GET http://localhost:9090/targets     ← todos los servicios en Prometheus
 
 | Recurso | URL | Usuario / Contraseña |
 |---|---|---|
+| **Frontend nodo 1** | http://localhost:4200 | — |
+| **Frontend nodo 2** | http://localhost:4201 | — |
+| **Frontend nodo 3** | http://localhost:4202 | — |
 | **Swagger UI nodo 1** | http://localhost:8080/swagger-ui.html | — |
 | **Swagger UI nodo 2** | http://localhost:8090/swagger-ui.html | — |
 | **Swagger UI nodo 3** | http://localhost:8100/swagger-ui.html | — |
