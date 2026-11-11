@@ -10,9 +10,11 @@ PRIMARY_PORT="${PRIMARY_PORT:-5432}"
 REPL_USER="${REPL_USER:-replicator}"
 REPL_PASSWORD="${REPL_PASSWORD:-replicator_pass}"
 
+mkdir -p "$PGDATA" && chmod 700 "$PGDATA"
+
 if [ -f "$PGDATA/PG_VERSION" ]; then
   echo "[REPLICA] Data directory already initialized — skipping pg_basebackup."
-  exec postgres -c shared_buffers=32MB -c max_connections=50
+  exec postgres -c shared_buffers=32MB -c max_connections=100
 fi
 
 echo "[REPLICA] Waiting for primary at $PRIMARY_HOST:$PRIMARY_PORT..."
@@ -29,4 +31,4 @@ PGPASSWORD="$REPL_PASSWORD" pg_basebackup \
   -Fp -Xs -P -R
 
 echo "[REPLICA] Base backup complete. Starting replica..."
-exec postgres -c shared_buffers=32MB -c max_connections=50
+exec postgres -c shared_buffers=32MB -c max_connections=100
