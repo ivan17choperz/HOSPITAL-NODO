@@ -18,6 +18,11 @@
 ##    Sync Status Node3:    http://localhost:8286/status
 ## ============================================================
 
+x-java-service: &java-service
+  mem_limit: 256m
+  memswap_limit: 256m
+  cpus: 0.5
+
 services:
 
   # ============================================================
@@ -26,6 +31,7 @@ services:
 
   postgres-node1:
     image: postgres:17-alpine
+    mem_limit: 160m
     profiles: ["node1"]
     container_name: hospital-node1-db
     restart: unless-stopped
@@ -44,6 +50,8 @@ services:
       -c wal_level=replica
       -c max_wal_senders=5
       -c wal_keep_size=64
+      -c shared_buffers=32MB
+      -c max_connections=50
       -c hba_file=/etc/postgresql/pg_hba.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d hospital_db"]
@@ -55,6 +63,7 @@ services:
 
   postgres-node1-replica:
     image: postgres:17-alpine
+    mem_limit: 160m
     profiles: ["node1"]
     container_name: hospital-node1-db-replica
     restart: unless-stopped
@@ -79,6 +88,7 @@ services:
 
   rabbitmq-node1:
     image: rabbitmq:4-management-alpine
+    mem_limit: 320m
     profiles: ["node1"]
     container_name: hospital-node1-mq
     restart: unless-stopped
@@ -98,6 +108,8 @@ services:
 
   redis-node1:
     image: redis:7-alpine
+    mem_limit: 32m
+    command: ["redis-server","--maxmemory","24mb","--maxmemory-policy","allkeys-lru","--save",""]
     profiles: ["node1"]
     container_name: hospital-node1-redis
     restart: unless-stopped
@@ -113,6 +125,7 @@ services:
 
   keycloak-node1:
     image: quay.io/keycloak/keycloak:24.0.4
+    mem_limit: 600m
     profiles: ["node1"]
     container_name: hospital-node1-keycloak
     restart: unless-stopped
@@ -121,6 +134,7 @@ services:
       - KEYCLOAK_ADMIN_PASSWORD=admin
       - KC_HTTP_ENABLED=true
       - KC_HOSTNAME_STRICT=false
+      - JAVA_OPTS_KC_HEAP=-XX:MaxRAMPercentage=60 -XX:+UseSerialGC -Xss512k
     command: start-dev --import-realm
     volumes:
       - ./keycloak/hospital-realm.json:/opt/keycloak/data/import/hospital-realm.json:ro
@@ -131,6 +145,7 @@ services:
 
   ms-admission-node1:
     build: ./ms-admission
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-admission
     restart: unless-stopped
@@ -153,6 +168,7 @@ services:
 
   ms-discharge-node1:
     build: ./ms-discharge
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-discharge
     restart: unless-stopped
@@ -175,6 +191,7 @@ services:
 
   ms-emr-node1:
     build: ./ms-emr
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-emr
     restart: unless-stopped
@@ -197,6 +214,7 @@ services:
 
   ms-laboratory-node1:
     build: ./ms-laboratory
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-laboratory
     restart: unless-stopped
@@ -219,6 +237,7 @@ services:
 
   ms-fhir-adapter-node1:
     build: ./ms-fhir-adapter
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-fhir
     restart: unless-stopped
@@ -241,6 +260,7 @@ services:
 
   ms-sync-agent-node1:
     build: ./ms-sync-agent
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-sync
     restart: unless-stopped
@@ -268,6 +288,7 @@ services:
 
   ms-triage-node1:
     build: ./ms-triage
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-triage
     restart: unless-stopped
@@ -290,6 +311,7 @@ services:
 
   ms-doctor-node1:
     build: ./ms-doctor
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-doctor
     restart: unless-stopped
@@ -309,6 +331,7 @@ services:
 
   ms-gateway-node1:
     build: ./ms-gateway
+    <<: *java-service
     profiles: ["node1"]
     container_name: hospital-node1-gateway
     restart: unless-stopped
@@ -343,6 +366,7 @@ services:
 
   postgres-node2:
     image: postgres:17-alpine
+    mem_limit: 160m
     profiles: ["node2"]
     container_name: hospital-node2-db
     restart: unless-stopped
@@ -361,6 +385,8 @@ services:
       -c wal_level=replica
       -c max_wal_senders=5
       -c wal_keep_size=64
+      -c shared_buffers=32MB
+      -c max_connections=50
       -c hba_file=/etc/postgresql/pg_hba.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d hospital_db"]
@@ -372,6 +398,7 @@ services:
 
   postgres-node2-replica:
     image: postgres:17-alpine
+    mem_limit: 160m
     profiles: ["node2"]
     container_name: hospital-node2-db-replica
     restart: unless-stopped
@@ -396,6 +423,7 @@ services:
 
   rabbitmq-node2:
     image: rabbitmq:4-management-alpine
+    mem_limit: 320m
     profiles: ["node2"]
     container_name: hospital-node2-mq
     restart: unless-stopped
@@ -415,6 +443,8 @@ services:
 
   redis-node2:
     image: redis:7-alpine
+    mem_limit: 32m
+    command: ["redis-server","--maxmemory","24mb","--maxmemory-policy","allkeys-lru","--save",""]
     profiles: ["node2"]
     container_name: hospital-node2-redis
     restart: unless-stopped
@@ -430,6 +460,7 @@ services:
 
   keycloak-node2:
     image: quay.io/keycloak/keycloak:24.0.4
+    mem_limit: 600m
     profiles: ["node2"]
     container_name: hospital-node2-keycloak
     restart: unless-stopped
@@ -438,6 +469,7 @@ services:
       - KEYCLOAK_ADMIN_PASSWORD=admin
       - KC_HTTP_ENABLED=true
       - KC_HOSTNAME_STRICT=false
+      - JAVA_OPTS_KC_HEAP=-XX:MaxRAMPercentage=60 -XX:+UseSerialGC -Xss512k
     command: start-dev --import-realm
     volumes:
       - ./keycloak/hospital-realm.json:/opt/keycloak/data/import/hospital-realm.json:ro
@@ -448,6 +480,7 @@ services:
 
   ms-admission-node2:
     build: ./ms-admission
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-admission
     restart: unless-stopped
@@ -470,6 +503,7 @@ services:
 
   ms-discharge-node2:
     build: ./ms-discharge
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-discharge
     restart: unless-stopped
@@ -492,6 +526,7 @@ services:
 
   ms-emr-node2:
     build: ./ms-emr
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-emr
     restart: unless-stopped
@@ -514,6 +549,7 @@ services:
 
   ms-laboratory-node2:
     build: ./ms-laboratory
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-laboratory
     restart: unless-stopped
@@ -536,6 +572,7 @@ services:
 
   ms-fhir-adapter-node2:
     build: ./ms-fhir-adapter
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-fhir
     restart: unless-stopped
@@ -558,6 +595,7 @@ services:
 
   ms-sync-agent-node2:
     build: ./ms-sync-agent
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-sync
     restart: unless-stopped
@@ -585,6 +623,7 @@ services:
 
   ms-triage-node2:
     build: ./ms-triage
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-triage
     restart: unless-stopped
@@ -607,6 +646,7 @@ services:
 
   ms-doctor-node2:
     build: ./ms-doctor
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-doctor
     restart: unless-stopped
@@ -626,6 +666,7 @@ services:
 
   ms-gateway-node2:
     build: ./ms-gateway
+    <<: *java-service
     profiles: ["node2"]
     container_name: hospital-node2-gateway
     restart: unless-stopped
@@ -660,6 +701,7 @@ services:
 
   postgres-node3:
     image: postgres:17-alpine
+    mem_limit: 160m
     profiles: ["node3"]
     container_name: hospital-node3-db
     restart: unless-stopped
@@ -678,6 +720,8 @@ services:
       -c wal_level=replica
       -c max_wal_senders=5
       -c wal_keep_size=64
+      -c shared_buffers=32MB
+      -c max_connections=50
       -c hba_file=/etc/postgresql/pg_hba.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d hospital_db"]
@@ -689,6 +733,7 @@ services:
 
   postgres-node3-replica:
     image: postgres:17-alpine
+    mem_limit: 160m
     profiles: ["node3"]
     container_name: hospital-node3-db-replica
     restart: unless-stopped
@@ -713,6 +758,7 @@ services:
 
   rabbitmq-node3:
     image: rabbitmq:4-management-alpine
+    mem_limit: 320m
     profiles: ["node3"]
     container_name: hospital-node3-mq
     restart: unless-stopped
@@ -732,6 +778,8 @@ services:
 
   redis-node3:
     image: redis:7-alpine
+    mem_limit: 32m
+    command: ["redis-server","--maxmemory","24mb","--maxmemory-policy","allkeys-lru","--save",""]
     profiles: ["node3"]
     container_name: hospital-node3-redis
     restart: unless-stopped
@@ -747,6 +795,7 @@ services:
 
   keycloak-node3:
     image: quay.io/keycloak/keycloak:24.0.4
+    mem_limit: 600m
     profiles: ["node3"]
     container_name: hospital-node3-keycloak
     restart: unless-stopped
@@ -755,6 +804,7 @@ services:
       - KEYCLOAK_ADMIN_PASSWORD=admin
       - KC_HTTP_ENABLED=true
       - KC_HOSTNAME_STRICT=false
+      - JAVA_OPTS_KC_HEAP=-XX:MaxRAMPercentage=60 -XX:+UseSerialGC -Xss512k
     command: start-dev --import-realm
     volumes:
       - ./keycloak/hospital-realm.json:/opt/keycloak/data/import/hospital-realm.json:ro
@@ -765,6 +815,7 @@ services:
 
   ms-admission-node3:
     build: ./ms-admission
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-admission
     restart: unless-stopped
@@ -787,6 +838,7 @@ services:
 
   ms-discharge-node3:
     build: ./ms-discharge
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-discharge
     restart: unless-stopped
@@ -809,6 +861,7 @@ services:
 
   ms-emr-node3:
     build: ./ms-emr
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-emr
     restart: unless-stopped
@@ -831,6 +884,7 @@ services:
 
   ms-laboratory-node3:
     build: ./ms-laboratory
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-laboratory
     restart: unless-stopped
@@ -853,6 +907,7 @@ services:
 
   ms-fhir-adapter-node3:
     build: ./ms-fhir-adapter
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-fhir
     restart: unless-stopped
@@ -875,6 +930,7 @@ services:
 
   ms-sync-agent-node3:
     build: ./ms-sync-agent
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-sync
     restart: unless-stopped
@@ -902,6 +958,7 @@ services:
 
   ms-triage-node3:
     build: ./ms-triage
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-triage
     restart: unless-stopped
@@ -924,6 +981,7 @@ services:
 
   ms-doctor-node3:
     build: ./ms-doctor
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-doctor
     restart: unless-stopped
@@ -943,6 +1001,7 @@ services:
 
   ms-gateway-node3:
     build: ./ms-gateway
+    <<: *java-service
     profiles: ["node3"]
     container_name: hospital-node3-gateway
     restart: unless-stopped
@@ -973,6 +1032,7 @@ services:
 
   prometheus-node1:
     image: prom/prometheus:v2.51.0
+    mem_limit: 128m
     profiles: ["node1"]
     container_name: hospital-node1-prometheus
     restart: unless-stopped
@@ -985,6 +1045,7 @@ services:
 
   grafana-node1:
     image: grafana/grafana:10.4.2
+    mem_limit: 128m
     profiles: ["node1"]
     container_name: hospital-node1-grafana
     restart: unless-stopped
@@ -1002,6 +1063,7 @@ services:
 
   prometheus-node2:
     image: prom/prometheus:v2.51.0
+    mem_limit: 128m
     profiles: ["node2"]
     container_name: hospital-node2-prometheus
     restart: unless-stopped
@@ -1014,6 +1076,7 @@ services:
 
   grafana-node2:
     image: grafana/grafana:10.4.2
+    mem_limit: 128m
     profiles: ["node2"]
     container_name: hospital-node2-grafana
     restart: unless-stopped
@@ -1031,6 +1094,7 @@ services:
 
   prometheus-node3:
     image: prom/prometheus:v2.51.0
+    mem_limit: 128m
     profiles: ["node3"]
     container_name: hospital-node3-prometheus
     restart: unless-stopped
@@ -1043,6 +1107,7 @@ services:
 
   grafana-node3:
     image: grafana/grafana:10.4.2
+    mem_limit: 128m
     profiles: ["node3"]
     container_name: hospital-node3-grafana
     restart: unless-stopped
@@ -1060,6 +1125,7 @@ services:
 
   hospital-app-node1:
     build: ./hospital-app
+    mem_limit: 32m
     profiles: ["node1"]
     container_name: hospital-node1-frontend
     restart: unless-stopped
@@ -1070,6 +1136,7 @@ services:
 
   hospital-app-node2:
     build: ./hospital-app
+    mem_limit: 32m
     profiles: ["node2"]
     container_name: hospital-node2-frontend
     restart: unless-stopped
@@ -1080,6 +1147,7 @@ services:
 
   hospital-app-node3:
     build: ./hospital-app
+    mem_limit: 32m
     profiles: ["node3"]
     container_name: hospital-node3-frontend
     restart: unless-stopped
